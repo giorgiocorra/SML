@@ -73,6 +73,7 @@ add_service_files(
   PlannerStart.srv
   IrisPlusResetNeutral.srv
   IrisPlusSetNeutral.srv
+  PlotService.srv
 )
 
 ## Generate actions in the 'action' folder

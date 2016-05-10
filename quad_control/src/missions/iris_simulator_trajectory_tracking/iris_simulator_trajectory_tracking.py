@@ -30,6 +30,7 @@ class IrisSimulatorTrajectoryTracking(mission.Mission):
 
     inner = {}
 
+    
     inner['controller']     = fa_trajectory_tracking_controllers_database.database
     inner['reference']      = trajectories_database.database
     inner['yaw_controller'] = yaw_controllers_database.database
@@ -112,6 +113,13 @@ class IrisSimulatorTrajectoryTracking(mission.Mission):
 
     def get_pv_desired(self):
         return self.reference[0:6]
+
+
+    def get_complementary_data(self):
+        return numpy.array([])
+
+    def get_labels_complementary_data(self):
+        return []
 
 
     def get_euler_angles(self):

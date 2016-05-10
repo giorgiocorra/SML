@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 # import Misson abstract class
 from .. import mission
 

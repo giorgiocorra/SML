@@ -44,7 +44,7 @@ class IrisRealTrajectoryTracking(mission.Mission):
     
     
     def __init__(self,
-            body_id = 29,
+            body_id        = 29,
             controller     = fa_trajectory_tracking_controllers_database.database["Default"](),
             reference      = trajectories_database.database["Default"](),
             yaw_controller = yaw_controllers_database.database["Default"]()
@@ -53,7 +53,6 @@ class IrisRealTrajectoryTracking(mission.Mission):
         # Subscribe to the necessary topics, if any
 
         mission.Mission.__init__(self)
-
         
         # converting our controlller standard into iris+ standard
         self.IrisPlusConverterObject = IrisPlusConverter()
@@ -81,7 +80,7 @@ class IrisRealTrajectoryTracking(mission.Mission):
 
         self.iris_plus_converter_object_mission.set_mass(self.ControllerObject.MASS)
 
-        pass  
+        pass
 
 
     def initialize_state(self):
