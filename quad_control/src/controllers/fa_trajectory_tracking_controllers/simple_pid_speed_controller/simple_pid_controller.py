@@ -10,7 +10,7 @@ from utilities import utility_functions
 
 import rospy
 
-class SimplePIDController(controller.Controller):
+class SimplePIDSpeedController(controller.Controller):
 
     
     @classmethod
@@ -26,12 +26,12 @@ class SimplePIDController(controller.Controller):
     def __init__(self,              \
         proportional_gain_xy = 1.0, \
         derivative_gain_xy   = 1.0, \
-        integral_gain_xy     = 0.0, \
-        bound_integral_xy    = 0.0, \
+        integral_gain_xy     = 0.5, \
+        bound_integral_xy    = 1.0, \
         proportional_gain_z  = 1.0, \
         derivative_gain_z    = 1.0, \
         integral_gain_z      = 0.5, \
-        bound_integral_z     = 0.0,
+        bound_integral_z     = 1.0,
         quad_mass            = rospy.get_param("quadrotor_mass",1.442)
         ):
 
@@ -76,9 +76,9 @@ class SimplePIDController(controller.Controller):
 
         #--------------------------------------#
         # desired quad trajectory
-        xd = reference[0:3]
+        xd = x
         vd = reference[3:6]
-        ad = reference[6:9]
+        ad = 0*x
         
         #--------------------------------------#
         # position error and velocity error

@@ -9,7 +9,7 @@ from converter_between_standards.iris_plus_converter import IrisPlusConverter
 # publish message quad_cmd that contains commands to simulator
 from quad_control.msg import quad_cmd, quad_state,quad_speed_controller_cmd
 
-from controllers.fa_trajectory_tracking_controllers.simple_pid_controller.simple_pid_controller import SimplePIDController
+from controllers.fa_trajectory_tracking_controllers.simple_pid_speed_controller.simple_pid_controller import SimplePIDSpeedController
 
 # import yaw controllers dictionary
 from yaw_rate_controllers.neutral_yaw_controller.neutral_yaw_controller import NeutralYawController
@@ -51,11 +51,12 @@ class LTLMission(mission.Mission):
         self.pub_cmd = rospy.Publisher('quad_cmd', quad_cmd, queue_size=10)
         
         # controllers selected by default
-        self.ControllerObject = SimplePIDController()
+        self.ControllerObject = SimplePIDSpeedController()
 
         self.YawControllerObject = NeutralYawController()
 
-        self.command = numpy.array([0]*9)
+        self.command = numpy.zeros(3*5)
+        self.reference = numpy.zeros(3*5)
 
     def initialize_state(self):
         # state of quad: position, velocity and attitude 
@@ -80,6 +81,7 @@ class LTLMission(mission.Mission):
 
 
     def get_reference(self,time_instant):
+        self.reference = self.command
         return self.command
 
     def get_state(self):
@@ -135,11 +137,9 @@ class LTLMission(mission.Mission):
         self.state_quad = numpy.concatenate([p,v,ee])  
 
     def set_command(self,data):
-        pos = self.state_quad[0:3]
-        vel = np.array([data,vx,data.vy,0])
-        acc = np.array([0,0,0])
-        self.command  = numpy.concatenate([pos,vel,acc]) 
+        vel = numpy.array([data.vx,data.vy,0])
+        self.command  = numpy.concatenate([numpy.zeros(3),vel,numpy.zeros(3*3)]) 
+        rospy.logwarn(self.command)
 
     def get_command(self):
         return self.command
- 

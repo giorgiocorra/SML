@@ -87,6 +87,14 @@ class MonotonePlannerNode():
 
 		rospy.Service('StartPlanner', PlannerStart, self.start_plan_execution)
 
+
+		rate = rospy.Rate(1.0)
+		while not rospy.is_shutdown():
+			if self.execute_plan:
+				break
+			rate.sleep()
+
+		# Start of the plan
 		rate = rospy.Rate(1.0/planner.period)
 
 		while not rospy.is_shutdown():
