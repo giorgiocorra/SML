@@ -1,0 +1,16 @@
+<library path="src">
+  <class name="Choose LTL plan" type="gui.choose_mission.ChooseLTLPlanPlugin" base_class_type="rqt_gui_py::Plugin">
+    <description>
+      Tab where user can select LTL plan, and modify its parameters
+    </description>
+    <qtgui>
+      <group>
+        <label>Iris</label>
+        <icon type="theme">folder</icon>
+      </group>
+      <label>LTL plan Selection</label>
+      <icon type="theme">applications-science</icon>
+      <statustip>Great user interface to provide real value.</statustip>
+    </qtgui>
+  </class>
+</library>

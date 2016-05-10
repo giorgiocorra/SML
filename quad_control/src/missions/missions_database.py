@@ -16,5 +16,8 @@ database["IrisRealTrajectoryTracking"] = iris_real_trajectory_tracking.iris_real
 import iris_simulator_trajectory_tracking.iris_simulator_trajectory_tracking
 database["IrisSimulatorTrajectoryTracking"] = iris_simulator_trajectory_tracking.iris_simulator_trajectory_tracking.IrisSimulatorTrajectoryTracking
 
+import ltl_mission.ltl_mission
+database["LTLPlanner"] = ltl_mission.ltl_mission.LTLMission
+
 
 database["Default"] = database[rospy.get_param("MissionDefault","IrisSimulatorTrajectoryTracking")]
