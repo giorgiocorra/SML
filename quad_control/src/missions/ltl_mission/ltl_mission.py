@@ -7,11 +7,12 @@ from .. import mission
 from converter_between_standards.iris_plus_converter import IrisPlusConverter
 
 # publish message quad_cmd that contains commands to simulator
-from quad_control.msg import quad_cmd, quad_state
+from quad_control.msg import quad_cmd, quad_state,quad_speed_controller_cmd
 
+from controllers.fa_trajectory_tracking_controllers.simple_pid_controller.simple_pid_controller import SimplePIDController
 
 # import yaw controllers dictionary
-from yaw_rate_controllers import yaw_controllers_database
+from yaw_rate_controllers.neutral_yaw_controller.neutral_yaw_controller import NeutralYawController
 
 
 import math
@@ -24,12 +25,9 @@ import rospy
 import threading
 import time
 
-import plan_control
-
 class LTLMission(mission.Mission):
 
     inner = {}
-
 
     @classmethod
     def description(cls):
@@ -48,16 +46,16 @@ class LTLMission(mission.Mission):
         # controller needs to have access to STATE: comes from simulator
         self.SubToSim = rospy.Subscriber("quad_state", quad_state, self.get_state_from_simulator)
 
+        rospy.Subscriber("quad_speed_controller_cmd", quad_speed_controller_cmd, self.set_command)
         # message published by quad_control that simulator will subscribe to 
         self.pub_cmd = rospy.Publisher('quad_cmd', quad_cmd, queue_size=10)
         
         # controllers selected by default
-        self.ControllerObject = velocity_controller()
+        self.ControllerObject = SimplePIDController()
 
-        self.YawControllerObject = yaw_controller()
+        self.YawControllerObject = NeutralYawController()
 
-        pass  
-
+        self.command = numpy.array([0]*9)
 
     def initialize_state(self):
         # state of quad: position, velocity and attitude 
@@ -93,14 +91,14 @@ class LTLMission(mission.Mission):
 
 
     def get_pv_desired(self):
-        return self.reference[0:6]
+        return self.command[0:6]
 
 
     def get_euler_angles(self):
         return self.state_quad[6:9]
 
 
-    def real_publish(self,desired_3d_force_quad,yaw_rate):
+    def real_publish(self,desired_3d_force_quad,yaw_rate,rc):
 
         euler_rad     = self.state_quad[6:9]*math.pi/180 
 
@@ -136,29 +134,12 @@ class LTLMission(mission.Mission):
         # collect all components of state
         self.state_quad = numpy.concatenate([p,v,ee])  
 
-    def set_command(self,u):
-        self.command = u
+    def set_command(self,data):
+        pos = self.state_quad[0:3]
+        vel = np.array([data,vx,data.vy,0])
+        acc = np.array([0,0,0])
+        self.command  = numpy.concatenate([pos,vel,acc]) 
 
     def get_command(self):
         return self.command
-
-class LTLPlanner(threading.Thread):
-    def __init__(self,mission):
-        threading.Thread.__init__(self)
-
-        self.planner = plan_control("plan.ltl")
-        self.mission = mission
-        self.period = self.planner.period
-        self.stop = False
-
-    def init(position):
-        self.planner.init(position)
-
-    def run(self,position):
-        while self.stop==False:
-            u = self.planner.get_control(position)
-            self.mission.set_command(u)
-            time.sleep(self.period)
-
-    def stop_planner(self):
-        self.stop=True
+ 

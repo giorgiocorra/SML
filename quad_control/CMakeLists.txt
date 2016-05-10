@@ -55,6 +55,7 @@ add_message_files(
    quad_cmd.msg
    Controller_State.msg
    Num.msg
+   quad_speed_controller_cmd.msg
 )
 
 # Generate services in the 'srv' folder
