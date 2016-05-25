@@ -42,8 +42,8 @@
         <!-- <param name="quadrotor_mass" value="1.669"/> -->
 
         <!-- Simulator Node -->
-        <node pkg="quad_control" name="Simulator_Iris1" type="quad_simulator.py" output="screen"/>
-
+<!--         <node pkg="quad_control" name="Simulator_Iris1" type="quad_simulator.py" output="screen"/>
+ -->
         <!-- Simulator parameters -->
         <param name="gravity_sim" value="9.81"/>
         <param name="mass_quad_sim" value="1.442"/>
@@ -60,7 +60,7 @@
         <!-- MAVROS -->
         <!-- In order to run mavros node, you need to have access to device connected to ttyUSB0, so you may have to change some permissions -->
 
-        <!--
+        
         <arg name="fcu_url" default="/dev/ttyUSB0:57600" />
         <arg name="gcs_url" default="" />
         <arg name="tgt_system" default="1" />
@@ -77,7 +77,7 @@
             <arg name="tgt_component" value="$(arg tgt_component)" />
             <arg name="log_output" value="$(arg log_output)" />
         </include>  
-        -->
+        
 
         <!-- GUI -->
         <!-- <node name="rqt_gui" pkg="gui" type="tabbedGUI"/> -->

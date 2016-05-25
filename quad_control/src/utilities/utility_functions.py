@@ -203,7 +203,6 @@ class Median_Filter():
         self.data = numpy.zeros(N)
     
     def update_data(self,new_data):
-        N = self.N
         self.data[:-1] = self.data[1:]
         self.data[-1]  = new_data
 
@@ -229,7 +228,6 @@ class Median_Filter_3D():
         Dz_new = self.Dz.up_and_out(new_data[2])
         return numpy.array([Dx_new,Dy_new,Dz_new])
 
-
 class Velocity_Filter():
     def __init__(self,N,old_position,old_time):
         self.median_filter = Median_Filter_3D(N)
@@ -243,6 +241,54 @@ class Velocity_Filter():
         self.old_time = new_time
         out = self.median_filter.up_and_out(vel_estimate)
 
+        return out
+
+
+
+class Mean_Filter():
+    # N is order of median filter
+    def __init__(self, N):
+        self.N = N
+        self.data = numpy.zeros(N)
+    
+    def update_data(self,new_data):
+        self.data[:-1] = self.data[1:]
+        self.data[-1]  = new_data
+
+    def output(self):
+        return numpy.mean(self.data)
+
+    def up_and_out(self,new_data):
+        self.update_data(new_data)
+        return self.output()
+
+
+class Mean_Filter_3D():
+    # N is order of median filter
+    def __init__(self, N):
+        self.N = N
+        self.Dx =  Mean_Filter(N)
+        self.Dy =  Mean_Filter(N)
+        self.Dz =  Mean_Filter(N)
+
+    def up_and_out(self,new_data):
+        Dx_new = self.Dx.up_and_out(new_data[0])
+        Dy_new = self.Dy.up_and_out(new_data[1])
+        Dz_new = self.Dz.up_and_out(new_data[2])
+        return numpy.array([Dx_new,Dy_new,Dz_new])
+
+class Velocity_Mean_Filter():
+    def __init__(self,N,old_position,old_time):
+        self.mean_filter = Mean_Filter_3D(N)
+        self.old_position = old_position
+        self.old_time = old_time
+
+    def out(self,new_position,new_time):
+        dt = new_time - self.old_time
+        vel_estimate =  (new_position - self.old_position)/dt
+        self.old_position = new_position
+        self.old_time = new_time
+        out = self.mean_filter.up_and_out(vel_estimate)
         return out
 
 

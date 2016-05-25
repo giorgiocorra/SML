@@ -74,6 +74,7 @@ add_service_files(
   IrisPlusResetNeutral.srv
   IrisPlusSetNeutral.srv
   PlotService.srv
+  GotoPosition.srv
 )
 
 ## Generate actions in the 'action' folder

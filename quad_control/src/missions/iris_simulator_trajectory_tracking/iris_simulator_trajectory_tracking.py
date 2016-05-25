@@ -88,8 +88,7 @@ class IrisSimulatorTrajectoryTracking(mission.Mission):
          
     def __del__(self):
         # Unsubscribe from all the subscribed topics
-        self.sub_odometry.unregister()
-
+        pass
 
     def get_quad_ea_rad(self):
     	euler_rad     = self.state_quad[6:9]*math.pi/180

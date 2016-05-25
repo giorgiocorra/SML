@@ -14,6 +14,10 @@ import matplotlib
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 
+from std_srvs.srv import *
+from quad_control.srv import *
+
+
 # The children import needed dictionaries
 
 # For example
@@ -64,6 +68,8 @@ class Mission(js.Jsonable):
         'control_y',
         'control_z'
     ]
+
+    need_to_stop_the_quad = False
 
 
     @classmethod
@@ -168,6 +174,7 @@ class Mission(js.Jsonable):
         # converting our controlller standard into iris+ standard
         self.iris_plus_converter_object_mission = IrisPlusConverter()
 
+        self.stop_service = rospy.Service('StopTheQuad', GotoPosition, self.request_stop)
         pass
         
         
@@ -177,8 +184,11 @@ class Mission(js.Jsonable):
         
         
     def __del__(self):
-        # Unsubscribe from all the subscribed topics
+        self.stop_service.shutdown()
         pass
+
+    def shutdown(self):
+        self.stop_service.shutdown()
 
 
     def initialize_state(self):
@@ -341,8 +351,40 @@ class Mission(js.Jsonable):
 
         return desired_3d_force_quad
 
+    def is_in_arena(self,pos):
+        return numpy.all(numpy.array([-0.5,-2.0])<pos) and numpy.all(pos<numpy.array([2.5,2.]))
+
+    # Switch to the default controller
+    def stop_the_quad(self,data=None):
+        if self.ControllerObject.__class__ != self.inner['controller']["Default"]:
+            rospy.logwarn("Switch to position controller")
+            rospy.logwarn( self.ControllerObject.__class__ )
+            rospy.logwarn( self.inner['controller']["Default"] )
+            ControllerClass      = self.inner['controller']["Default"]
+            self.ControllerObject = ControllerClass()
+
+        if data==None:
+            self.command[0:3] = numpy.array([1.0,0,1.5])
+        else:
+            self.command[0:3] = numpy.array([data.x,data.y,data.z])
+        self.command[3:6] = numpy.array([0,0,0])
+        self._command = self.command.copy()
+        rospy.logwarn(str(self.command[0:3]))
+        rospy.logwarn("Stop the quad")
+        return {}
+
+    def request_stop(self,data):
+        self.stop_the_quad(data)
+        #self.need_to_stop_the_quad = True
+        return {}
 
     def publish(self):
+        current_xy_position = self.get_pv()[0:2]
+        if not self.is_in_arena(current_xy_position) or self.need_to_stop_the_quad:
+
+            self.stop_the_quad()
+            rospy.logwarn("Stop the quad, xy position:" + str(current_xy_position))
+            self.need_to_stop_the_quad = False
 
         time_instant = rospy.get_time() - self.time_instant_t0
 

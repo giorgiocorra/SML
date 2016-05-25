@@ -38,6 +38,7 @@ sys.path.insert(0, rospack.get_path('quad_control'))
 # no need to get quad_control path, since it is package; import controllers dictionary
 from src.simulators import simulators_dictionary
 
+from mavros_msgs.srv import *
 
 from choose_jsonable import ChooseJsonablePlugin
 
@@ -233,6 +234,8 @@ class ChooseSystemPlugin(Plugin):
 
     def Set_Flight_Mode(self,MODE):
         
+        print(self.namespace)
+
         #Change the flight mode on the Pixhawk flight controller
         try:
             # it waits for service for 2 seconds
@@ -248,11 +251,13 @@ class ChooseSystemPlugin(Plugin):
                 else:
                     rospy.logwarn('Could not change Flight mode')
                     # return False
-            except:
+            except Exception,e:
+                rospy.logwarn(str(e))
                 rospy.logwarn('Mavros is not available')
                 # return False
 
-        except:
+        except Exception,e:
+            rospy.logwarn(str(e))
             rospy.logwarn('Mavros is not available')
             # return False
 
@@ -279,11 +284,13 @@ class ChooseSystemPlugin(Plugin):
                     rospy.logwarn('Cannot arm quad')
                     # return False
 
-            except:
+            except Exception,e:
+                rospy.logwarn(str(e))
                 rospy.logwarn('Cannot arm quad')
                 # return False
 
-        except:
+        except Exception,e:
+            rospy.logwarn(str(e))
             rospy.logwarn('No connection to Mavros')
             # return False    
 

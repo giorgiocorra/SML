@@ -11,4 +11,8 @@ database['StayAtRest'] = FixedPointTrajectory
 from circle_trajectory.circle_trajectory import CircleTrajectory
 database['DescribeCircle'] = CircleTrajectory
 
+from constant_xy_speed_trajectory.constant_xy_speed_trajectory import ConstantXYSpeedTrajectory
+database['ConstantXYSpeedTrajectory'] = ConstantXYSpeedTrajectory
+
+
 database["Default"] = database[rospy.get_param("TrajectoryDefault","StayAtRest")]

@@ -10,7 +10,7 @@ database["NeutralController"] = NeutralController
 from simple_pid_controller.simple_pid_controller import SimplePIDController
 database["SimplePIDController"] = SimplePIDController
 
-from simple_pid_speed_controller.simple_pid_controller import SimplePIDSpeedController
+from simple_pid_speed_controller.simple_pid_controller2 import SimplePIDSpeedController
 database["SimplePIDSpeedController"] = SimplePIDSpeedController
 
 from abstract_pid_controller.abstract_pid_controller import ThreeDPIDController

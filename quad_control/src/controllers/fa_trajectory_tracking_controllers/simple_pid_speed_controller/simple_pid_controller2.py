@@ -23,58 +23,26 @@ class SimplePIDSpeedController(controller.Controller):
         return "PID Controller, with saturation on integral part"
 
 
-    # def __init__(self,              \
-    #     proportional_gain_xy = 1.0, \
-    #     derivative_gain_xy   = 1.0, \
-    #     integral_gain_xy     = 0.0, \
-    #     bound_integral_xy    = 0.0, \
-    #     proportional_gain_z  = 1.0, \
-    #     derivative_gain_z    = 1.0, \
-    #     integral_gain_z      = 0.5, \
-    #     bound_integral_z     = 0.0,
-    #     quad_mass            = rospy.get_param("quadrotor_mass",1.442)
-    #     ):
-
-    #     self.__proportional_gain_xy = proportional_gain_xy
-    #     self.__derivative_gain_xy   = derivative_gain_xy
-    #     self.__integral_gain_xy     = integral_gain_xy
-    #     self.__bound_integral_xy    = bound_integral_xy
-    #     self.__proportional_gain_z  = proportional_gain_z
-    #     self.__derivative_gain_z    = derivative_gain_z
-    #     self.__integral_gain_z      = integral_gain_z
-    #     self.__bound_integral_z     = bound_integral_z
-    #     self.__quad_mass            = quad_mass
-
-    #     #TODO get from utilities?
-    #     self.MASS = quad_mass
-    #     self.GRAVITY = 9.81
-
-    #     self.disturbance_estimate   = numpy.array([0.0,0.0,0.0])
-    #     self.t_old  = 0.0
-
     def __init__(self,              \
-        proportional_gain_xy      = 1.0, \
-        proportional_gain_z       = 1.0, \
+        natural_frequency_xy = 2.3, \
+        integral_gain_xy     = 0.5, \
+        bound_integral_xy    = 1.0, \
+        natural_frequency_z  = 1.0, \
+        integral_gain_z      = 0.5, \
+        bound_integral_z     = 0.0,
         quad_mass            = rospy.get_param("quadrotor_mass",1.442)
         ):
 
-    # def __init__(self,              \
-    #     proportional_gain_xy      = 1.0, \
-    #     integral_gain_xy     = 0.0, \
-    #     bound_integral_xy    = 0.0, \
-    #     proportional_gain_z       = 1.0, \
-    #     integral_gain_z      = 0.5, \
-    #     bound_integral_z     = 0.0,
-    #     quad_mass            = rospy.get_param("quadrotor_mass",1.442)
-    #     ):
-
-        self.__proportional_gain_xy = proportional_gain_xy
-        self.__integral_gain_xy     = 0.0
-        self.__bound_integral_xy    = 0.0
-        self.__proportional_gain_z  = proportional_gain_z
-        self.__integral_gain_z      = 0.0
-        self.__bound_integral_z     = 0.0
+        self.__proportional_gain_xy = natural_frequency_xy**2
+        self.__derivative_gain_xy   = numpy.sqrt(2)*natural_frequency_xy
+        self.__integral_gain_xy     = integral_gain_xy
+        self.__bound_integral_xy    = bound_integral_xy
+        self.__proportional_gain_z  = natural_frequency_z**2
+        self.__derivative_gain_z    = numpy.sqrt(2)*natural_frequency_z
+        self.__integral_gain_z      = integral_gain_z
+        self.__bound_integral_z     = bound_integral_z
         self.__quad_mass            = quad_mass
+
 
         #TODO get from utilities?
         self.MASS = quad_mass
@@ -89,33 +57,35 @@ class SimplePIDSpeedController(controller.Controller):
         #TODO add all the parameters and the state
         string = controller.Controller.__str__(self)
         string += "\nProportional gain xy: " + str(self.__proportional_gain_xy)
+        string += "\nDerivative gain xy: " + str(self.__derivative_gain_xy)
         return string
 
-
     def output(self, delta_t, state, reference):
-
         # third canonical basis vector
         e3 = numpy.array([0.0,0.0,1.0])        
         
         #--------------------------------------#
         # position and velocity
-        # x  = state[0:3]
+        x  = state[0:3]
         v  = state[3:6]
         # thrust unit vector and its angular velocity
         # R  = state[6:15]; R  = numpy.reshape(R,(3,3))
 
         #--------------------------------------#
         # desired quad trajectory
-        # xd = reference[0:3]
+        xd = reference[0:3]
         vd = reference[3:6]
-        ad = reference[6:9]
+        ad = 0*x
         
         #--------------------------------------#
         # position error and velocity error
-        # ep = x - xd
-        ev = v - vd
 
-        u, V_v = self.input_and_gradient_of_lyapunov(ev)
+        ep = v - vd
+        ep[2] = x[2] - xd[2]
+        ev = 0*ep
+        ev[2] = v[2] - vd[2]
+
+        u, V_v = self.input_and_gradient_of_lyapunov(ep,ev)
 
         Full_actuation = self.MASS*(ad + u + self.GRAVITY*e3 - self.disturbance_estimate)
 
@@ -141,20 +111,22 @@ class SimplePIDSpeedController(controller.Controller):
         return Full_actuation
 
 
-    def input_and_gradient_of_lyapunov(self,ev):
+    def input_and_gradient_of_lyapunov(self,ep,ev):
 
         u    = numpy.array([0.0,0.0,0.0])
         V_v  = numpy.array([0.0,0.0,0.0])
 
         kp     = self.__proportional_gain_xy
-        u[0]   = - kp*ev[0]
-        u[1]   = - kp*ev[1]
-        V_v[0] = ev[0]
-        V_v[1] = ev[1]
+        kv     = self.__derivative_gain_xy
+        u[0]   = -kp*ep[0] - kv*ev[0]
+        u[1]   = -kp*ep[1] - kv*ev[1]
+        V_v[0] = (kp/2*ep[0] + ev[0])
+        V_v[1] = (kp/2*ep[1] + ev[1])
 
         kp     = self.__proportional_gain_z
-        u[2]   = - kp*ev[2]
-        V_v[2] = ev[2]
+        kv     = self.__derivative_gain_z
+        u[2]   = -kp*ep[2] - kv*ev[2]
+        V_v[2] = (kp/2*ep[2] + ev[2])
 
         return u, V_v
 

@@ -7,17 +7,19 @@ from converter_between_standards.iris_plus_converter import IrisPlusConverter
 # publish message quad_cmd that contains commands to simulator
 from quad_control.msg import quad_cmd, quad_state,quad_speed_controller_cmd
 
+from controllers.fa_trajectory_tracking_controllers.simple_pid_speed_controller.simple_pid_controller import SimplePIDSpeedController
 from controllers.fa_trajectory_tracking_controllers import fa_trajectory_tracking_controllers_database
 
 # import yaw controllers dictionary
 from yaw_rate_controllers.neutral_yaw_controller.neutral_yaw_controller import NeutralYawController
-from yaw_rate_controllers.simple_tracking_yaw_controller.simple_tracking_yaw_controller import SimpleTrackingYawController
 
 from quad_control.srv import GotoPosition
 from std_srvs.srv import Empty,SetBool
 
 import math
 import numpy
+
+from mavros_msgs.msg import OverrideRCIn
 
 # for subscribing to topics, and publishing
 import rospy
@@ -27,23 +29,23 @@ import time
 
 from planner import MonotonePlanner
 
+import utilities.mocap_source as mocap_source
+
+from utilities.utility_functions import Velocity_Filter
+
 class LTLMission(mission.Mission):
 
     inner = {}
-    inner['controller']     = fa_trajectory_tracking_controllers_database.database
+    inner['controller'] = fa_trajectory_tracking_controllers_database.database
 
     @classmethod
     def description(cls):
-        return "LTL planner"
+        return "Speed tuning"
 
     
-    def __init__(self,z_mission=1.5,controller=fa_trajectory_tracking_controllers_database.database["Default"]()):
+    def __init__(self,controller     = fa_trajectory_tracking_controllers_database.database["Default"]()):
         # Copy the parameters into self variables
         # Subscribe to the necessary topics, if any
-
-        mission.Mission.__init__(self)
-        
-        # converting our controlller standard into iris+ standard
         self.IrisPlusConverterObject = IrisPlusConverter()
 
         # controller needs to have access to STATE: comes from simulator
@@ -52,21 +54,27 @@ class LTLMission(mission.Mission):
         rospy.Subscriber("quad_speed_controller_cmd", quad_speed_controller_cmd, self.set_command)
         # message published by quad_control that simulator will subscribe to 
         self.pub_cmd = rospy.Publisher('quad_cmd', quad_cmd, queue_size=10)
-        
+
         # controllers selected by default
         self.ControllerObject = controller
 
-
-        self.YawControllerObject = SimpleTrackingYawController(gain=5.0)
+        self.YawControllerObject = NeutralYawController()
 
         self.command = numpy.zeros(3*5)
         self.reference = numpy.zeros(3*5)
 
-        self.z_mission = z_mission
-        self.command[2] = self.z_mission
-        self.reference[2] = self.z_mission
+        self.position_reference = None
 
-        self._command  = self.command.copy()
+        mission.Mission.__init__(self)
+        
+        self.command = numpy.zeros(3*5)
+        self.reference = numpy.zeros(3*5)
+
+        self.command[2] = 1.0
+        self.reference[2] = 1.0
+
+        self.position_reference = None
+        self.is_speed_controller = False
 
     def initialize_state(self):
         # state of quad: position, velocity and attitude 
@@ -84,20 +92,23 @@ class LTLMission(mission.Mission):
         self.sub_odometry.unregister()
 
 
+    def use_speed_controller(self,data):
+        self.is_speed_controller=data.data
+        return {"success":True,"message":""}
+
     def get_quad_ea_rad(self):
     	euler_rad     = self.state_quad[6:9]*math.pi/180
     	euler_rad_dot = numpy.zeros(3)
     	return numpy.concatenate([euler_rad,euler_rad_dot])
 
+
     def get_reference(self,time_instant):
-        p=0.05
-        self.command = (1.0-p) * self.command + p *self._command
         return self.command
+
 
     def get_state(self):
         return self.state_quad
-
-
+        
     def get_pv(self):
         return self.state_quad[0:6]
 
@@ -108,6 +119,7 @@ class LTLMission(mission.Mission):
 
     def get_euler_angles(self):
         return self.state_quad[6:9]
+
 
 
     def real_publish(self,desired_3d_force_quad,yaw_rate,rc):
@@ -145,15 +157,24 @@ class LTLMission(mission.Mission):
         # collect all components of state
         self.state_quad = numpy.concatenate([p,v,ee])  
 
+
     def set_command(self,data):
         vel = numpy.array([data.vx,data.vy,0])
-        self._command[3:6]  = vel
-        rospy.logwarn(self._command)
+        self.command[3:6]  = vel
+        rospy.logwarn(self.command)
 
     def get_command(self):
         return self.command
-        
-    def get_command(self):
-        return self.command
 
+    # callback when simulator publishes states
+    def get_state_from_simulator(self,simulator_message):
 
+        # position
+        p = numpy.array([simulator_message.x,simulator_message.y,simulator_message.z])
+        # velocity
+        v = numpy.array([simulator_message.vx,simulator_message.vy,simulator_message.vz])
+        #v = self.VelocityEstimator.out(p,rospy.get_time())
+        # attitude: euler angles
+        ee = numpy.array([simulator_message.roll,simulator_message.pitch,simulator_message.yaw])
+        # collect all components of state
+        self.state_quad = numpy.concatenate([p,v,ee])  

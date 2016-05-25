@@ -20,6 +20,7 @@ from quad_control.srv import *
 # to work with directories relative to ROS packages
 from rospkg import RosPack
 
+from std_srvs.srv import *
 
 
 import numpy
@@ -162,6 +163,8 @@ class QuadController():
 
     # callback for when changing mission is requested
     def _handle_service_change_mission(self,req):
+
+        self.mission_object.shutdown()
 
         self.mission_name = req.jsonable_name
 
@@ -338,6 +341,11 @@ class QuadController():
                 msg.d_est = self.ControllerObject.d_est
                 self.pub_ctr_st.publish(msg) 
 
+    def request_stop(self,data):
+        self.mission_object.need_to_stop_the_quad = True
+        rospy.logwarn(id(self.mission_object.need_to_stop_the_quad))
+        return {}
+
     def control_compute(self):
 
         # node will be named quad_control (see rqt_graph)
@@ -384,6 +392,7 @@ class QuadController():
 
         rospy.Service('ServiceChangeMission', SrvCreateJsonableObjectByStr, self._handle_service_change_mission)
 
+
         #-----------------------------------------------------------------------#
         # Service: change neutral value that guarantees that a quad remains at a desired altitude
         rospy.Service('IrisPlusResetNeutral', IrisPlusResetNeutral, self._handle_iris_plus_reset_neutral)
@@ -395,6 +404,7 @@ class QuadController():
         MissionClass = missions.missions_database.database['Default']        
         # construct a default object
         self.mission_object = MissionClass()
+
 
         rate = rospy.Rate(self.frequency)
 

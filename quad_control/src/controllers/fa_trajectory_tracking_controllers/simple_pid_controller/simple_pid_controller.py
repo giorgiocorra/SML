@@ -23,27 +23,57 @@ class SimplePIDController(controller.Controller):
         return "PID Controller, with saturation on integral part"
 
 
+    # def __init__(self,              \
+    #     proportional_gain_xy = 1.0, \
+    #     derivative_gain_xy   = 1.0, \
+    #     integral_gain_xy     = 0.0, \
+    #     bound_integral_xy    = 0.0, \
+    #     proportional_gain_z  = 1.0, \
+    #     derivative_gain_z    = 1.0, \
+    #     integral_gain_z      = 0.5, \
+    #     bound_integral_z     = 0.0,
+    #     quad_mass            = rospy.get_param("quadrotor_mass",1.442)
+    #     ):
+
+    #     self.__proportional_gain_xy = proportional_gain_xy
+    #     self.__derivative_gain_xy   = derivative_gain_xy
+    #     self.__integral_gain_xy     = integral_gain_xy
+    #     self.__bound_integral_xy    = bound_integral_xy
+    #     self.__proportional_gain_z  = proportional_gain_z
+    #     self.__derivative_gain_z    = derivative_gain_z
+    #     self.__integral_gain_z      = integral_gain_z
+    #     self.__bound_integral_z     = bound_integral_z
+    #     self.__quad_mass            = quad_mass
+
+    #     #TODO get from utilities?
+    #     self.MASS = quad_mass
+    #     self.GRAVITY = 9.81
+
+    #     self.disturbance_estimate   = numpy.array([0.0,0.0,0.0])
+    #     self.t_old  = 0.0
+
     def __init__(self,              \
-        proportional_gain_xy = 1.0, \
-        derivative_gain_xy   = 1.0, \
-        integral_gain_xy     = 0.0, \
-        bound_integral_xy    = 0.0, \
-        proportional_gain_z  = 1.0, \
-        derivative_gain_z    = 1.0, \
-        integral_gain_z      = 0.5, \
-        bound_integral_z     = 0.0,
-        quad_mass            = rospy.get_param("quadrotor_mass",1.442)
+        natural_frequency_xy   = 2.0, \
+        integral_gain_xy       = 0.5, \
+        bound_integral_xy      = 1.0, \
+        natural_frequency_z    = 1.0, \
+        integral_gain_z        = 0.5, \
+        bound_integral_z       = 0.0, \
+        bound_proportional_xy  = 0.5, \
+        quad_mass              = rospy.get_param("quadrotor_mass",1.442)
         ):
 
-        self.__proportional_gain_xy = proportional_gain_xy
-        self.__derivative_gain_xy   = derivative_gain_xy
-        self.__integral_gain_xy     = integral_gain_xy
-        self.__bound_integral_xy    = bound_integral_xy
-        self.__proportional_gain_z  = proportional_gain_z
-        self.__derivative_gain_z    = derivative_gain_z
-        self.__integral_gain_z      = integral_gain_z
-        self.__bound_integral_z     = bound_integral_z
-        self.__quad_mass            = quad_mass
+        self.__proportional_gain_xy     = natural_frequency_xy**2
+        self.__derivative_gain_xy       = numpy.sqrt(2)*natural_frequency_xy
+        self.__integral_gain_xy         = integral_gain_xy
+        self.__bound_integral_xy        = bound_integral_xy
+        self.__proportional_gain_z      = natural_frequency_z**2
+        self.__derivative_gain_z        = numpy.sqrt(2)*natural_frequency_z
+        self.__integral_gain_z          = integral_gain_z
+        self.__bound_integral_z         = bound_integral_z
+        self.__bound_proportional_xy    = bound_proportional_xy
+        self.__quad_mass                = quad_mass
+
 
         #TODO get from utilities?
         self.MASS = quad_mass
@@ -84,6 +114,13 @@ class SimplePIDController(controller.Controller):
         # position error and velocity error
         ep = x - xd
         ev = v - vd
+
+
+        max_error = numpy.array([self.__bound_proportional_xy,self.__bound_proportional_xy,2.0])
+        _ep = utility_functions.bound(ep,max_error,-1.0*max_error)
+        if numpy.all(_ep==ep)==False:
+            rospy.logwarn(str(_ep) + " " + str(ep))
+        ep = _ep
 
         u, V_v = self.input_and_gradient_of_lyapunov(ep,ev)
 

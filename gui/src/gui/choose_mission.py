@@ -26,6 +26,8 @@ from src.missions import missions_database
 from src.utilities import jsonable
 
 from choose_jsonable import ChooseJsonablePlugin
+from choose_ltl_plan import ChooseLTLPlanPlugin
+from speed_tuning import SpeedTuningPlugin
 
 class ChooseMissionPlugin(Plugin):
 
@@ -91,7 +93,6 @@ class ChooseMissionPlugin(Plugin):
         # button for resetting list of available controllers
         self._widget.ResetControllersList.clicked.connect(self.__reset_controllers_widget)
 
-
         self.choose_reference  = ChooseJsonablePlugin(context,\
             self.namespace,\
             name_tab = "Reference",
@@ -120,6 +121,8 @@ class ChooseMissionPlugin(Plugin):
             service_name = 'ServiceChangeController',\
             ServiceClass = SrvCreateJsonableObjectByStr)
 
+        self.choose_ltl_mission  = ChooseLTLPlanPlugin(context,self.namespace)
+        self.speed_controller_tuning  = SpeedTuningPlugin(context,self.namespace)
 
     def __print_controller_item_clicked(self):
 
@@ -187,7 +190,13 @@ class ChooseMissionPlugin(Plugin):
 
         if 'yaw_reference' in self.__HeadClass.inner.keys():
             self.choose_yaw_reference.change_dictionary_of_options(self.__HeadClass.inner['yaw_reference'])
-            self._widget.tabWidget.addTab(self.choose_yaw_reference._widget,'YawReference')            
+            self._widget.tabWidget.addTab(self.choose_yaw_reference._widget,'YawReference')
+
+        if 'LTLPlanner' in self.__head_class_key:
+            self._widget.tabWidget.addTab(self.choose_ltl_mission._widget,'LTL planner')
+
+        if 'SpeedControllerTuning' in self.__head_class_key:
+            self._widget.tabWidget.addTab(self.speed_controller_tuning._widget,'Speed controller tuning')
 
 
     def __controller_item_clicked(self):
