@@ -32,5 +32,8 @@ database["FireflyLTLPlanner"] = firefly_LTL.firefly_LTL.LTLMission
 import ltl_mission.ltl_mission_real_iris
 database["RealIrisLTLPlanner"] = ltl_mission.ltl_mission_real_iris.LTLMission
 
+import vision_coverage_mission.vision_coverage_mission
+database["FireflyVisionMission"] = vision_coverage_mission.vision_coverage_mission.LTLMission
+
 
 database["Default"] = database[rospy.get_param("MissionDefault","IrisSimulatorTrajectoryTracking")]

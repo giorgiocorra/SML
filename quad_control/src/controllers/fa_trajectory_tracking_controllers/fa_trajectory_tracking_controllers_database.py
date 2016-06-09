@@ -13,6 +13,9 @@ database["SimplePIDController"] = SimplePIDController
 from simple_pid_speed_controller.simple_pid_controller2 import SimplePIDSpeedController
 database["SimplePIDSpeedController"] = SimplePIDSpeedController
 
+from simple_pid_speed_controller_3d.simple_pid_controller_3d import SimplePIDSpeedController
+database["SimplePIDSpeedController_3d"] = SimplePIDSpeedController
+
 from abstract_pid_controller.abstract_pid_controller import ThreeDPIDController
 database["AbstractPIDController"] = ThreeDPIDController
 

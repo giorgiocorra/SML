@@ -8,7 +8,8 @@ import rospy
 
 import numpy
 
-from numpy import *
+import math
+
 
 from numpy import cos as c
 from numpy import sin as s
@@ -91,6 +92,13 @@ def unit_vec(psi,theta):
 #print unit_vec(45*3.14/180,0)
 #print unit_vec(45*3.14/180,45*3.14/180)
 #print unit_vec(0*3.14/180,-90*3.14/180)
+
+def psi_theta_from_unit_vec(v):
+    # returns psi in [-pi,pi] and theta in [0,pi]
+    theta = numpy.arctan2(-v[2],v[0])
+    theta = abs(theta)
+    psi = numpy.arctan2(v[1]*c(theta),v[0])
+    return psi, theta
 
 
 def bound(x,maxmax,minmin):

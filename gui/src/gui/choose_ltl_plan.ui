@@ -32,7 +32,7 @@
        </rect>
       </property>
       <layout class="QGridLayout" name="gridLayout_8">
-       <item row="3" column="0">
+       <item row="1" column="0">
         <widget class="QTabWidget" name="LTLplan">
          <property name="currentIndex">
           <number>0</number>
@@ -45,9 +45,16 @@
            <item>
             <widget class="QGroupBox" name="groupBox">
              <property name="title">
-              <string>LTL Mission selection</string>
+              <string>Landmarks poses</string>
              </property>
              <layout class="QGridLayout" name="gridLayout_2">
+              <item row="2" column="1">
+               <widget class="QPushButton" name="load_lmks">
+                <property name="text">
+                 <string>Load landmarks</string>
+                </property>
+               </widget>
+              </item>
               <item row="0" column="1">
                <widget class="QLineEdit" name="ltl_filename"/>
               </item>
@@ -61,18 +68,157 @@
               <item row="0" column="0">
                <widget class="QLabel" name="label">
                 <property name="text">
-                 <string>Plan</string>
-                </property>
-               </widget>
-              </item>
-              <item row="1" column="1">
-               <widget class="QPushButton" name="load_plan">
-                <property name="text">
-                 <string>Load file</string>
+                 <string>Landmarks file</string>
                 </property>
                </widget>
               </item>
              </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QGroupBox" name="groupBox_5">
+             <property name="title">
+              <string>Camera initial pose</string>
+             </property>
+             <layout class="QGridLayout" name="gridLayout_5">
+              <item row="0" column="1" alignment="Qt::AlignRight">
+               <widget class="QLabel" name="label_5">
+                <property name="text">
+                 <string>X</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="2">
+               <widget class="QDoubleSpinBox" name="px"/>
+              </item>
+              <item row="1" column="0">
+               <widget class="QLabel" name="label_6">
+                <property name="text">
+                 <string>Initial Orientation:</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="2">
+               <widget class="QDoubleSpinBox" name="vpsi">
+                <property name="decimals">
+                 <number>4</number>
+                </property>
+                <property name="minimum">
+                 <double>-1.000000000000000</double>
+                </property>
+                <property name="maximum">
+                 <double>1.000000000000000</double>
+                </property>
+                <property name="singleStep">
+                 <double>0.100000000000000</double>
+                </property>
+                <property name="value">
+                 <double>0.500000000000000</double>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="6">
+               <widget class="QDoubleSpinBox" name="pz">
+                <property name="minimum">
+                 <double>0.500000000000000</double>
+                </property>
+                <property name="maximum">
+                 <double>4.000000000000000</double>
+                </property>
+                <property name="singleStep">
+                 <double>0.100000000000000</double>
+                </property>
+                <property name="value">
+                 <double>1.000000000000000</double>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="7">
+               <widget class="QLabel" name="label_10">
+                <property name="text">
+                 <string>(as fractions of pi)</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="4">
+               <widget class="QDoubleSpinBox" name="vtheta">
+                <property name="decimals">
+                 <number>4</number>
+                </property>
+                <property name="minimum">
+                 <double>0.000000000000000</double>
+                </property>
+                <property name="maximum">
+                 <double>1.000000000000000</double>
+                </property>
+                <property name="singleStep">
+                 <double>0.100000000000000</double>
+                </property>
+                <property name="value">
+                 <double>0.886300000000000</double>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="4">
+               <widget class="QDoubleSpinBox" name="py"/>
+              </item>
+              <item row="0" column="5" alignment="Qt::AlignRight">
+               <widget class="QLabel" name="label_4">
+                <property name="text">
+                 <string>Z</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1" alignment="Qt::AlignRight">
+               <widget class="QLabel" name="label_7">
+                <property name="text">
+                 <string>Psi</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="3" alignment="Qt::AlignRight">
+               <widget class="QLabel" name="label_3">
+                <property name="text">
+                 <string>Y</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="3" alignment="Qt::AlignRight">
+               <widget class="QLabel" name="label_8">
+                <property name="text">
+                 <string>Theta</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="7" alignment="Qt::AlignHCenter">
+               <widget class="QLabel" name="label_9">
+                <property name="text">
+                 <string>(in meters)</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="0">
+               <widget class="QLabel" name="label_2">
+                <property name="text">
+                 <string>Initial Position:</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="label_11">
+             <property name="text">
+              <string>Vector [1,0,0] is rotated of psi about z axis and then of theta about y axis. Psi is in [-pi,pi]. Theta is in [0,pi].</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="update_initial_pose">
+             <property name="text">
+              <string>Update initial pose</string>
+             </property>
             </widget>
            </item>
            <item>
@@ -81,28 +227,28 @@
               <string>Controls</string>
              </property>
              <layout class="QGridLayout" name="gridLayout_3">
-              <item row="1" column="0">
-               <widget class="QPushButton" name="goto_initial_position">
+              <item row="4" column="1">
+               <widget class="QPushButton" name="start_planner">
                 <property name="text">
-                 <string>Go to starting position</string>
+                 <string>Start mission</string>
                 </property>
                </widget>
               </item>
-              <item row="2" column="0">
-               <widget class="QPushButton" name="start_plan">
-                <property name="text">
-                 <string>Start plan</string>
-                </property>
-               </widget>
-              </item>
-              <item row="3" column="0">
+              <item row="5" column="1">
                <widget class="QPushButton" name="stop">
                 <property name="text">
                  <string>Stop</string>
                 </property>
                </widget>
               </item>
-              <item row="0" column="0">
+              <item row="3" column="1">
+               <widget class="QPushButton" name="goto_initial_position">
+                <property name="text">
+                 <string>Go to starting pose</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
                <widget class="QPushButton" name="slow_take_off">
                 <property name="text">
                  <string>Slow take off (go 0.5m up)</string>

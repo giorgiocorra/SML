@@ -43,21 +43,21 @@ import sys
 import os
 sys.path.insert(0, rospack.get_path('quad_control'))
 
+from utilities.utility_functions import unit_vec
+
 # no need to get quad_control path, since it is package; import controllers dictionary
 from src.simulators import simulators_dictionary
 
 
-from quad_control.srv import PlannerStart
+from quad_control.srv import Filename
 from quad_control.msg import quad_state
 from nav_msgs.msg import Odometry
 from converter_between_standards.rotorS_converter import RotorSConverter
 
-
-
-sys.path.append('/home/paul/workspace/master thesis/pwa/core')
-import convert_plans
-
 import numpy
+
+from utilities.coverage_giorgio import read_lmks_from_file
+from math import pi as PI
 
 class ChooseLTLPlanPlugin(Plugin):
     def __init__(self, context,namespace = None):
@@ -108,13 +108,18 @@ class ChooseLTLPlanPlugin(Plugin):
 
         self._widget.open_file.clicked.connect(self.open_file)
         self.filename = ""
-        self._widget.load_plan.clicked.connect(self.load_plan)
-        self._widget.stop.clicked.connect(lambda : self.stop())
-        self._widget.start_plan.clicked.connect(self.start_plan)
+        self._widget.load_lmks.clicked.connect(self.load_lmks)
+        self._widget.update_initial_pose.clicked.connect(self.update_initial_pose)
+        self._widget.stop.clicked.connect(self.stop)
+        self._widget.start_planner.clicked.connect(self.start_speed_control)
         self._widget.goto_initial_position.clicked.connect(self.goto_initial_position)
         self._widget.slow_take_off.clicked.connect(self.slow_take_off)
 
-        self.current_position = numpy.array([0]*3)
+        self.current_position = numpy.array([0.]*3)
+        self.current_yaw = 0.
+        self.initial_position = numpy.array([0.,0.,1.])
+        self.initial_orientation_vector = numpy.array([0.,-1.,0.])
+
 
         package = 'quad_control'
         executable = 'planner_node.py'
@@ -148,117 +153,84 @@ class ChooseLTLPlanPlugin(Plugin):
         else:
             rospy.Subscriber("quad_state", quad_state, self.update_trace)
 
-        self.init_plot()
-
-
 
     def open_file(self):
-        dir_plans = "/home/paul/quad_workspace/src/quad_control/experimental_data/ltl_plans/"
-        result = QtGui.QFileDialog.getOpenFileName(self._widget, 'Open file', dir_plans)
+        dir_lmks = "/home/giorgiocorra/sml_ws/src/quad_control/experimental_data/landmark_examples/"
+        result = QtGui.QFileDialog.getOpenFileName(self._widget, 'Open file', directory = dir_lmks)
         self.filename = result[0]
         self._widget.ltl_filename.setText(os.path.basename(self.filename))
 
-    def load_plan_object(self,filename):
-        self.plan = convert_plans.load_from_ROS(filename)
-        self.initial_position = self.get_initial_position()
-        self.initial_position = numpy.concatenate([self.initial_position,numpy.array([1])])
-        self.init_env()
-
-    def load_plan(self):
-        self.load_plan_object(self.filename)
-        service_name = "/"+ self.namespace+'load_plan'
+    def load_lmks(self):
+        service_name = "/"+ self.namespace+'load_lmks'
         rospy.wait_for_service(service_name,2.0)
-        load_plan = rospy.ServiceProxy(service_name, PlannerStart,2.0)
-        load_plan(self.filename)
+        load_lmks_srv = rospy.ServiceProxy(service_name, Filename,2.0)
+        rospy.logwarn("Filename:  " + self.filename)
+        load_lmks_srv(self.filename)
 
-    def get_initial_position(self):
-        init = self.plan.env.get_all_elem_in_region("i")
-        return self.plan.env.get_baricenter(init[0])
+    # def get_initial_position(self):
+    #     init = self.plan.env.get_all_elem_in_region("i")
+    #     return self.plan.env.get_baricenter(init[0])
+
+    def update_initial_pose(self):
+        px = self._widget.px.value()
+        py = self._widget.py.value()
+        pz = self._widget.pz.value()
+        vpsi = self._widget.vpsi.value() * PI
+        vtheta = self._widget.vtheta.value() * PI
+        self.initial_position = numpy.array([px,py,pz])
+        self.initial_orientation_vector = unit_vec(vpsi,vtheta)
 
     def goto_initial_position(self):
-        self.stop(numpy.concatenate([self.initial_position,[1.5]]))
-
-    def stop_plan(self):
-        service_name = "/"+ self.namespace+'stop_plan'
+        service_name = "/"+ self.namespace+'PlaceTheCamera'
         rospy.wait_for_service(service_name,2.0)
-        stop_plan = rospy.ServiceProxy(service_name, Empty,2.0)
-        stop_plan()
+        place_srv = rospy.ServiceProxy(service_name, GotoPose,2.0)
+        p = self.initial_position.copy()
+        v = self.initial_orientation_vector.copy()
+        place_srv(x=p[0],y=p[1],z=p[2],v0=v[0],v1=v[1],v2=v[2])
 
-    def stop(self,position=numpy.array([0,0,1])):
+    def stop(self):
         service_name = "/"+ self.namespace+'StopTheQuad'
         rospy.wait_for_service(service_name,2.0)
-        stop = rospy.ServiceProxy(service_name, GotoPosition,2.0)
-        if position.shape[0] == 2:
-            p = numpy.concatenate([position,numpy.array([1.5])])
-        else:
-            p = position.copy()
-        stop(x=p[0],y=p[1],z=p[2])
+        stop_srv = rospy.ServiceProxy(service_name, Empty,2.0)
+        stop_srv()
 
-    def start_plan(self):
-        service_name = "/"+ self.namespace+'start_plan'
+    def start_speed_control(self):
+        service_name = "/"+ self.namespace+'start_speed_control'
         rospy.wait_for_service(service_name,2.0)
-        start_plan = rospy.ServiceProxy(service_name, Empty,2.0)
-        start_plan()
+        start_speed_srv = rospy.ServiceProxy(service_name, Empty,2.0)
+        start_speed_srv()
 
     def slow_take_off(self):
         ref = self.current_position
         ref[2] += 0.5
-        self.stop(ref)
+        #self.stop()
 
-    def init_plot(self):
-        self.fig = plt.figure()
-        self.ax_background = None
-        self.ax_trace = None
-        plt.axis('equal')
-        ax = plt.gca()
-        ax.set_xlim([0,3])
-        ax.set_ylim([0,3])
+    # def redraw(self,d):
+    #     if self.trace and self.ax_trace:
+    #         p = numpy.array(self.trace)
+    #         self.ax_trace.set_data(p[:,0],p[:,1])
+    #     return self.ax_trace,
 
-        self.canvas = FigureCanvas(self.fig)
-        self.canvas.setParent(self._widget)
-        self.canvas.setFocusPolicy(Qt.StrongFocus)
-        self.canvas.setFocus()
+    # def on_key_press(self, event):
+    #     key_press_handler(event, self.canvas, self.mpl_toolbar)
 
-        self.mpl_toolbar = NavigationToolbar(self.canvas, self._widget)
-
-        self._widget.plot_layout.addWidget(self.canvas)
-        self._widget.plot_layout.addWidget(self.mpl_toolbar)
-
-        self.canvas.mpl_connect('key_press_event', self.on_key_press)
-        self.canvas.mpl_connect('button_press_event', self.onclick)
-        self.anim = animation.FuncAnimation(self.fig, self.redraw,1, fargs=None,interval=1000.0, blit=False)
-
-    def redraw(self,d):
-        if self.trace and self.ax_trace:
-            p = numpy.array(self.trace)
-            self.ax_trace.set_data(p[:,0],p[:,1])
-        return self.ax_trace,
-
-    def on_key_press(self, event):
-        key_press_handler(event, self.canvas, self.mpl_toolbar)
-
-    def onclick(self,event):
-        if event.dblclick:
-            rospy.logwarn('goto %f %f' % (event.xdata, event.ydata))
-            position = numpy.array([event.xdata, event.ydata])
-            self.stop(position)
-
-
-    def init_env(self):
-        self.ax_background = self.plan.env.plot(plt)
-        self.ax_trace, = plt.plot([0],[0],"r")
+    # def onclick(self,event):
+    #     if event.dblclick:
+    #         rospy.logwarn('goto %f %f' % (event.xdata, event.ydata))
+    #         position = numpy.array([event.xdata, event.ydata])
+    #         self.stop(position)
 
     def update_trace(self,position):
         self.current_position = numpy.array([position.x,position.y,position.z])
-        self.trace.append(numpy.array([position.x,position.y]))
+        self.trace.append(self.current_position)
 
     def get_state_from_rotorS_simulator(self,odometry_rotor_s):
         self.RotorSObject.rotor_s_attitude_for_control(odometry_rotor_s)
         state_quad = self.RotorSObject.get_quad_state(odometry_rotor_s)
 
-        position = state_quad[0:2]
         self.current_position = state_quad[0:3]
-        self.trace.append(numpy.array([position[0],position[1]]))
+        self.current_yaw = state_quad[5]
+        self.trace.append(numpy.array(self.current_position))
 
 
     def _parse_args(self, argv):

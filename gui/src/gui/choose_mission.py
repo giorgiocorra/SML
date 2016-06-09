@@ -195,6 +195,9 @@ class ChooseMissionPlugin(Plugin):
         if 'LTLPlanner' in self.__head_class_key:
             self._widget.tabWidget.addTab(self.choose_ltl_mission._widget,'LTL planner')
 
+        if 'Vision' in self.__head_class_key:
+            self._widget.tabWidget.addTab(self.choose_ltl_mission._widget,'Vision')
+
         if 'SpeedControllerTuning' in self.__head_class_key:
             self._widget.tabWidget.addTab(self.speed_controller_tuning._widget,'Speed controller tuning')
 

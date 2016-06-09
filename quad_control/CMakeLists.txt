@@ -56,6 +56,7 @@ add_message_files(
    Controller_State.msg
    Num.msg
    quad_speed_controller_cmd.msg
+   quad_speed_cmd_3d.msg
 )
 
 # Generate services in the 'srv' folder
@@ -75,6 +76,8 @@ add_service_files(
   IrisPlusSetNeutral.srv
   PlotService.srv
   GotoPosition.srv
+  GotoPose.srv
+  Filename.srv
 )
 
 ## Generate actions in the 'action' folder

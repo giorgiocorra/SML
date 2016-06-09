@@ -49,14 +49,10 @@ from src.simulators import simulators_dictionary
 
 from quad_control.srv import PlannerStart
 from quad_control.msg import quad_state
-from quad_control.msg import quad_speed_controller_cmd
+from quad_control.msg import quad_speed_cmd_3d
 from nav_msgs.msg import Odometry
 from converter_between_standards.rotorS_converter import RotorSConverter
 
-
-
-sys.path.append('/home/paul/workspace/master thesis/pwa/core')
-import convert_plans
 
 import numpy
 
@@ -107,11 +103,13 @@ class SpeedTuningPlugin(Plugin):
         # ---------------------------------------------- #
 
 
-        self._widget.pvx.clicked.connect(lambda : self.speed_command(numpy.array([1,0])))
-        self._widget.mvx.clicked.connect(lambda : self.speed_command(numpy.array([-1,0])))
-        self._widget.pvy.clicked.connect(lambda : self.speed_command(numpy.array([0,1])))
-        self._widget.mvy.clicked.connect(lambda : self.speed_command(numpy.array([0,-1])))
-        self._widget.v0.clicked.connect(lambda : self.speed_command(numpy.array([0,0])))
+        self._widget.pvx.clicked.connect(lambda : self.speed_command(numpy.array([1,0,0])))
+        self._widget.mvx.clicked.connect(lambda : self.speed_command(numpy.array([-1,0,0])))
+        self._widget.pvy.clicked.connect(lambda : self.speed_command(numpy.array([0,1,0])))
+        self._widget.mvy.clicked.connect(lambda : self.speed_command(numpy.array([0,-1,0])))
+        self._widget.pvz.clicked.connect(lambda : self.speed_command(numpy.array([0,0,1])))
+        self._widget.mvz.clicked.connect(lambda : self.speed_command(numpy.array([0,0,-1])))
+        self._widget.v0.clicked.connect(lambda : self.speed_command(numpy.array([0,0,0])))
         self._widget.goto_init.clicked.connect(self.goto_initial_position)
         self._widget.stop.clicked.connect(lambda : self.stop())
 
@@ -121,17 +119,17 @@ class SpeedTuningPlugin(Plugin):
 
         rospy.Subscriber("quad_state", quad_state, self.update_position)
 
-        speed_command_topic = "/"+self.namespace+"quad_speed_controller_cmd"
+        speed_command_topic = "/"+self.namespace+"quad_speed_cmd_3d"
 
-        self.speed_controller = rospy.Publisher(speed_command_topic, quad_speed_controller_cmd, queue_size=10)
+        self.speed_controller = rospy.Publisher(speed_command_topic, quad_speed_cmd_3d, queue_size=10)
 
 
     def speed_command(self,v):
         s = self._widget.speed.value()
-        self.speed_controller.publish(quad_speed_controller_cmd(s*v[0],s*v[1]))
+        self.speed_controller.publish(quad_speed_cmd_3d(s*v[0],s*v[1],s*v[2]))
 
     def goto_initial_position(self):
-        self.stop(numpy.concatenate([self.initial_position,[self._widget.z_value.value()]]))
+        self.stop(numpy.concatenate(self.initial_position))
 
     def stop(self,position=numpy.array([0,0,1])):
 
@@ -140,10 +138,7 @@ class SpeedTuningPlugin(Plugin):
         rospy.wait_for_service(service_name,2.0)
         stop = rospy.ServiceProxy(service_name, GotoPosition,2.0)
 
-        if position.shape[0] == 2:
-            p = numpy.concatenate([position,numpy.array([1])])
-        else:
-            p = position.copy()
+        p = position.copy()
 
         stop(x=p[0],y=p[1],z=p[2])
 
@@ -167,15 +162,15 @@ class SpeedTuningPlugin(Plugin):
         self.current_position = numpy.array([position.x,position.y,position.z])
 
         if self.initial_position == None:
-            self.initial_position = self.current_position[0:2]
+            self.initial_position = self.current_position[0:3]
 
     def get_state_from_rotorS_simulator(self,odometry_rotor_s):
         self.RotorSObject.rotor_s_attitude_for_control(odometry_rotor_s)
         state_quad = self.RotorSObject.get_quad_state(odometry_rotor_s)
 
-        position = state_quad[0:2]
+        position = state_quad[0:3]
         self.current_position = state_quad[0:3]
-        self.trace.append(numpy.array([position[0],position[1]]))
+        self.trace.append(numpy.array([position[0],position[1],position[2]]))
 
 
     def _parse_args(self, argv):

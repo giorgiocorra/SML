@@ -5,7 +5,7 @@ from .. import mission
 from converter_between_standards.iris_plus_converter import IrisPlusConverter
 
 # publish message quad_cmd that contains commands to simulator
-from quad_control.msg import quad_cmd, quad_state,quad_speed_controller_cmd
+from quad_control.msg import quad_cmd, quad_state,quad_speed_cmd_3d
 
 from controllers.fa_trajectory_tracking_controllers.simple_pid_speed_controller.simple_pid_controller import SimplePIDSpeedController
 from controllers.fa_trajectory_tracking_controllers import fa_trajectory_tracking_controllers_database
@@ -51,7 +51,7 @@ class LTLMission(mission.Mission):
         # controller needs to have access to STATE: comes from simulator
         self.SubToSim = rospy.Subscriber("quad_state", quad_state, self.get_state_from_simulator)
 
-        rospy.Subscriber("quad_speed_controller_cmd", quad_speed_controller_cmd, self.set_command)
+        rospy.Subscriber("quad_speed_cmd_3d", quad_speed_cmd_3d, self.set_command)
         # message published by quad_control that simulator will subscribe to 
         self.pub_cmd = rospy.Publisher('quad_cmd', quad_cmd, queue_size=10)
 
@@ -69,9 +69,6 @@ class LTLMission(mission.Mission):
         
         self.command = numpy.zeros(3*5)
         self.reference = numpy.zeros(3*5)
-
-        self.command[2] = 1.0
-        self.reference[2] = 1.0
 
         self.position_reference = None
         self.is_speed_controller = False
@@ -159,7 +156,7 @@ class LTLMission(mission.Mission):
 
 
     def set_command(self,data):
-        vel = numpy.array([data.vx,data.vy,0])
+        vel = numpy.array([data.vx,data.vy,data.vz])
         self.command[3:6]  = vel
         rospy.logwarn(self.command)
 
