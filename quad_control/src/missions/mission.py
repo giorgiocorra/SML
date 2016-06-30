@@ -330,8 +330,8 @@ class Mission(js.Jsonable):
 
 		state_for_yaw_controller = self.get_quad_ea_rad()
 		input_for_yaw_controller = self.get_desired_yaw_rad(time_instant)
-
-		yaw_rate = self.YawControllerObject.output(state_for_yaw_controller,input_for_yaw_controller) 
+		
+		yaw_rate = self.YawControllerObject.output(state_for_yaw_controller,input_for_yaw_controller)
 
 		return yaw_rate
 
@@ -355,12 +355,12 @@ class Mission(js.Jsonable):
 		return numpy.all(numpy.array([-5.,-5.])<pos) and numpy.all(pos<numpy.array([5.,5.]))			# only for simulations
 
 	def publish(self):
-		current_xy_position = self.get_pv()[0:2]
-		if not self.is_in_arena(current_xy_position) or self.need_to_stop_the_quad:
+		# current_xy_position = self.get_pv()[0:2]
+		# if not self.is_in_arena(current_xy_position) or self.need_to_stop_the_quad:
 
-			self.stop_the_quad()
-			rospy.logwarn("Stop the quad, xy position:" + str(current_xy_position))
-			self.need_to_stop_the_quad = False
+		# 	self.stop_the_quad()
+		# 	rospy.logwarn("Stop the quad, xy position:" + str(current_xy_position))
+		# 	self.need_to_stop_the_quad = False
 
 		time_instant = rospy.get_time() - self.time_instant_t0
 
@@ -371,6 +371,7 @@ class Mission(js.Jsonable):
 		self.DesiredZForceMedian.update_data(desired_3d_force_quad[2])
 
 		yaw_rate = self.yaw_rate(time_instant)
+		#rospy.logerr('Yaw rate: ' + str(yaw_rate))
 
 		self.rc_command(desired_3d_force_quad,yaw_rate)
 

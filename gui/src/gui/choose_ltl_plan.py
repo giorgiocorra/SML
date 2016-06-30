@@ -118,7 +118,8 @@ class ChooseLTLPlanPlugin(Plugin):
         self.current_position = numpy.array([0.]*3)
         self.current_yaw = 0.
         self.initial_position = numpy.array([0.,0.,1.])
-        self.initial_orientation_vector = numpy.array([0.,-1.,0.])
+        self.initial_v_psi = 0
+        self.initial_v_theta = 0
 
 
         package = 'quad_control'
@@ -175,18 +176,18 @@ class ChooseLTLPlanPlugin(Plugin):
         px = self._widget.px.value()
         py = self._widget.py.value()
         pz = self._widget.pz.value()
-        vpsi = self._widget.vpsi.value() * PI
-        vtheta = self._widget.vtheta.value() * PI
         self.initial_position = numpy.array([px,py,pz])
-        self.initial_orientation_vector = unit_vec(vpsi,vtheta)
+        self.initial_v_psi = self._widget.vpsi.value() * PI
+        self.initial_v_theta = self._widget.vtheta.value() * PI
 
     def goto_initial_position(self):
         service_name = "/"+ self.namespace+'PlaceTheCamera'
         rospy.wait_for_service(service_name,2.0)
         place_srv = rospy.ServiceProxy(service_name, GotoPose,2.0)
         p = self.initial_position.copy()
-        v = self.initial_orientation_vector.copy()
-        place_srv(x=p[0],y=p[1],z=p[2],v0=v[0],v1=v[1],v2=v[2])
+        psi = self.initial_v_psi
+        theta = self.initial_v_theta
+        place_srv(x=p[0],y=p[1],z=p[2],psi = psi, theta = theta)
 
     def stop(self):
         service_name = "/"+ self.namespace+'StopTheQuad'

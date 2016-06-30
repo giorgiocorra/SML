@@ -57,6 +57,7 @@ add_message_files(
    Num.msg
    quad_speed_controller_cmd.msg
    quad_speed_cmd_3d.msg
+   camera_pose.msg
 )
 
 # Generate services in the 'srv' folder

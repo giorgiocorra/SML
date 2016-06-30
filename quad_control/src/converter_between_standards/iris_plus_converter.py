@@ -23,7 +23,7 @@ class IrisPlusConverter(object):
     __GRAVITY = rospy.get_param("gravity_ctr",9.81)
 
     # Throttle neutral 
-    __THROTTLE_NEUTRAL = rospy.get_param("throttle_neutral",1450)
+    __THROTTLE_NEUTRAL = rospy.get_param("throttle_neutral",1484)
 
     # The default of 4.5 commands a 200 deg/sec rate
     # of rotation when the yaw stick is held fully left or right.

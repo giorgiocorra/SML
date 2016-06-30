@@ -94,13 +94,26 @@ def unit_vec(psi,theta):
 #print unit_vec(0*3.14/180,-90*3.14/180)
 
 def psi_theta_from_unit_vec(v):
-    # returns psi in [-pi,pi] and theta in [0,pi]
     theta = numpy.arctan2(-v[2],v[0])
-    theta = abs(theta)
-    psi = numpy.arctan2(v[1]*c(theta),v[0])
+    
+    psi = numpy.arcsin(v[1])
+    return psi, theta
+
+def unit_vec_from_lat_long(psi,theta):
+    v_0 = c(theta)*c(psi)
+    v_1 = c(theta)*s(psi)
+    v_2 = s(theta)
+    return numpy.array([v_0, v_1, v_2])
+
+#print unit_vec_from_lat_long(math.pi/3, -math.pi/4)
+
+def lat_long_from_unit_vec(v):
+    psi = numpy.arctan2(v[1],v[0])
+    theta = numpy.arcsin(v[2])
     return psi, theta
 
 
+#print lat_long_from_unit_vec([ 0.35355339,  0.61237244, -0.70710678])
 def bound(x,maxmax,minmin):
 
     return numpy.maximum(minmin,numpy.minimum(maxmax,x))

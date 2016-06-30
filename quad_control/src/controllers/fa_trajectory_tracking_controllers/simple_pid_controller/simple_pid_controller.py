@@ -118,8 +118,8 @@ class SimplePIDController(controller.Controller):
 
         max_error = numpy.array([self.__bound_proportional_xy,self.__bound_proportional_xy,2.0])
         _ep = utility_functions.bound(ep,max_error,-1.0*max_error)
-        if numpy.all(_ep==ep)==False:
-            rospy.logwarn(str(_ep) + " " + str(ep))
+        # if numpy.all(_ep==ep)==False:
+        #     rospy.logwarn(str(_ep) + " " + str(ep))
         ep = _ep
 
         u, V_v = self.input_and_gradient_of_lyapunov(ep,ev)

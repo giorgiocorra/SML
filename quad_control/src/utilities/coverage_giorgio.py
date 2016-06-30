@@ -1,11 +1,11 @@
 import numpy as np
 norm = np.linalg.norm
 
-from math import exp
+from math import exp,tan,cos
 
-from quaternion_utilities import q_mult, qv_mult
+#from quaternion_utilities import q_mult, qv_mult
 
-from utility_functions import skew, psi_theta_from_unit_vec
+from utilities.utility_functions import skew, lat_long_from_unit_vec
 
 import geometry_msgs.msg as gms
 
@@ -13,7 +13,7 @@ import pickle
 
 # Distance functions
 
-D_OPT = 2.
+D_OPT = 6.
 
 def f(x):
 	"""Function that weights the distance"""
@@ -34,6 +34,42 @@ def d_f_bar(x):
 	return (x*d_f(x) - 2*f(x)) / (x**3)
 
 # Classes: landmark, list of landmarks and camera
+
+class Camera:
+
+	def __init__(self,p_0 = [0.,0.,1.],v_0 = [0.,-1.,0.]):
+		if ( abs(norm(v_0)-1)<1e-5):
+			self.p = np.array(p_0)
+			self.v = np.array(v_0)
+		else:
+			print "Error : v vector not unitary"
+			# throw exception
+
+	def __str__(self):
+		string = ""
+		string += "\np = " + str(self.p)
+		string += "\nv = " + str(self.v)
+		return string
+	
+	def position(self):
+		return self.p
+
+	def orientation_as_vector(self):
+		return self.v
+
+	def orientation_as_lat_long(self):
+		return lat_long_from_unit_vec(self.v)
+
+	def new_pose(self,cam_pose):
+		self.p = np.array([cam_pose.px,cam_pose.py,cam_pose.pz])
+		self.v = np.array([cam_pose.vx,cam_pose.vy,cam_pose.vz])
+
+# Test
+# cam = Camera([-2.,1.,0.75],[1.,0.,0.])
+# print cam
+# print cam.position()
+# print cam.orientation_as_vector()
+# print cam.orientation_as_angles()
 
 class Landmark:
 
@@ -68,6 +104,15 @@ class Landmark:
 			return f_bar(dist) * cos_alpha * cos_beta
 		else:
 			return 0.
+
+#Test
+# from utility_functions import unit_vec
+# from math import pi
+# lmk = Landmark([-1.,-1.,0.],unit_vec(pi/3, 0))
+# cam = Camera([-2.,1.,0.75],[1.,0.,0.])
+# print str(lmk)
+# print lmk.is_visible(cam)
+# print lmk.vision(cam)
 
 
 class Landmark_list:
@@ -104,51 +149,12 @@ class Landmark_list:
 			vis += lm.vision(cam)	
 		return vis
 		
-		
 	def visible_set(self,cam):
 		vis_set = Landmark_list([])
 		for lm in self.lst:
 			if (lm.is_visible(cam)):
 				vis_set.append(lm)
-		return vis_set	
-		
-
-class Camera:
-
-	def __init__(self,p_0 = [0.,0.,1.],v_0 = [0.,-1.,0.]):
-		if ( abs(norm(v_0)-1)<1e-5):
-			self.p = np.array(p_0)
-			self.v_0 = np.array(v_0)
-			self.v = np.array(v_0)
-			self.quat = np.array([0., 0., 0., 1.])
-		else:
-			print "Error : v vector not unitary"
-			# throw exception
-
-	def __str__(self):
-		string = ""
-		string += "\np = " + str(self.p)
-		string += "\nv = " + str(self.v)
-		return string
-	
-	def position(self):
-		return self.p
-
-	def orientation_as_vector(self):
-		return self.v
-
-	def orientation_as_quaternion(self):
-		return self.quat
-
-	def orientation_as_angles(self):
-		return psi_theta_from_unit_vec(self.v)
-
-	def new_pose(self,pose):
-		self.p = np.array([pose.position.x, pose.position.y, pose.position.z])
-		self.quat = np.array([pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w])
-		self.v = np.array(qv_mult(self.quat,self.v_0))
-		self.v /= norm(self.v)
-	
+		return vis_set		
 
 # Gradient computation
 
@@ -169,6 +175,18 @@ def linear_velocity(cam, Q):
 		m_2 = np.transpose([u]) * r + (r.dot(u)) * np.identity(dim)
 		sum += s_1 * m_1 + s_2 * m_2
 	return sum.dot(v)
+
+# # Test
+# from utility_functions import unit_vec
+# from math import pi
+# lmk_0 = Landmark([-3.,-1.,0.],unit_vec(pi/2, pi/6))
+# lmk_1 = Landmark([-2.,-1.,0.],unit_vec(pi/3, -pi/4))
+# lmk_2 = Landmark([-1.,-1.,0.],unit_vec(pi/3, 0))
+# landmarks = Landmark_list([lmk_0, lmk_1, lmk_2])
+# p = [-2.,1.,0.75]
+# v = unit_vec(-2*pi/3,-3*pi/4)
+# cam = Camera(p,v)
+# print linear_velocity(cam, landmarks)
 
 
 def angular_velocity(cam,Q):
@@ -191,6 +209,29 @@ def angular_velocity(cam,Q):
 	elif (dim == 2):
 		S_v = [-cam.v[1], cam.v[0]]
 	return S_v.dot(sum)
+
+# # Test
+# from utility_functions import unit_vec
+# from math import pi
+# lmk_0 = Landmark([-3.,-1.,0.],unit_vec(pi/2, pi/6))
+# lmk_1 = Landmark([-2.,-1.,0.],unit_vec(pi/3, -pi/4))
+# lmk_2 = Landmark([-1.,-1.,0.],unit_vec(pi/3, 0))
+# landmarks = Landmark_list([lmk_0, lmk_1, lmk_2])
+# p = [-2.,1.,0.75]
+# v = unit_vec(-2*pi/3,-3*pi/4)
+# cam = Camera(p,v)
+# print angular_velocity(cam, landmarks)
+
+def omega_camera_to_ee_rates(omega_xyz,pitch):
+	L = np.matrix([[1.,0.,tan(pitch)],[0.,1.,0.],[0.,0.,1./cos(pitch)]])
+	omega_rpy = L.dot(omega_xyz)
+	return (omega_rpy[0,1], omega_rpy[0,2])
+
+# Test
+#omega = np.array([0.5, 1., 0.3])
+#pitch = 1.3
+#print(omega_camera_to_ee_rates(omega, pitch))
+
 
 # Reading and writing Landmark objects
 
