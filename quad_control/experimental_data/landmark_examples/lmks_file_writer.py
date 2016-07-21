@@ -1,10 +1,17 @@
+#!/usr/bin/env python
+
+import sys
+
+import rospkg
+rospack = rospkg.RosPack()
+sys.path.insert(0, rospack.get_path('quad_control'))
+import rospy
+
 import numpy as np
 from math import pi as PI
 
-import sys
-sys.path.append('../../src/utilities/')
-import coverage_giorgio as cov
-from utility_functions import unit_vec
+import utilities.coverage_giorgio as cov
+from utilities.utility_functions import unit_vec
 
 import pickle
 

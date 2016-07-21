@@ -22,11 +22,11 @@ except ImportError:
 import pickle
 import numpy as np
 
-from converter_between_standards.rotorS_converter import RotorSConverter
-# node will publish motor speeds
-from mav_msgs.msg import Actuators
-#node will subscribe to odometry measurements
-from nav_msgs.msg import Odometry
+# from converter_between_standards.rotorS_converter import RotorSConverter
+# # node will publish motor speeds
+# from mav_msgs.msg import Actuators
+# #node will subscribe to odometry measurements
+# from nav_msgs.msg import Odometry
 
 
 class MonotonePlannerNode():
@@ -34,16 +34,17 @@ class MonotonePlannerNode():
 		self.namespace = namespace
 
 		self.execute_plan = False
-		self.namespace = namespace
 
 		rospy.init_node('planner', anonymous=True)
 
-		speed_command_topic = "/"+self.namespace+"quad_speed_cmd_3d"
+		speed_command_topic = "/"+self.namespace+"quad_max_speed_cmd"
 
 		self.speed_controller = rospy.Publisher(speed_command_topic, quad_speed_cmd_3d, queue_size=10)
 
+		self.D_OPT = rospy.get_param("D_OPT")
 		self.__landmarks = cov.Landmark_list()
 		self.__camera = cov.Camera()
+		self.__time = 0.
 
 		rospy.Subscriber('camera_pose', camera_pose, self.update_pose)
 
@@ -68,14 +69,14 @@ class MonotonePlannerNode():
 				control_v = np.array([0,0,0])
 				control_omega = np.array([0,0,0])
 			elif self.state=="start":
-				control_v = cov.linear_velocity(self.__camera, self.__landmarks)
-				control_omega = cov.angular_velocity(self.__camera, self.__landmarks)
+				control_v = cov.linear_velocity(self.__camera, self.__landmarks, self.D_OPT)
+				control_omega = cov.angular_velocity(self.__camera, self.__landmarks, self.D_OPT)
 			# 	rospy.logwarn("Planned linear velocity: " + str(control_v))
 			# 	rospy.logwarn("Planned angular velocity: " + str(control_omega))
 			# rospy.logerr("Position: " + str(self.__camera.position()))
 			# rospy.logerr("Orientation vector: " + str(self.__camera.orientation_as_lat_long()))
 			# #rospy.logerr("Landmarks: " + str(self.__landmarks))
-			vel_command = quad_speed_cmd_3d(vx=control_v[0],vy=control_v[1],vz=control_v[2],wx=control_omega[0],wy=control_omega[1],wz=control_omega[2])
+			vel_command = quad_speed_cmd_3d(vx=control_v[0],vy=control_v[1],vz=control_v[2],wx=control_omega[0],wy=control_omega[1],wz=control_omega[2],time=self.__time)
 			#rospy.logerr(command)
 			self.speed_controller.publish(vel_command)
 			# go to sleep
@@ -95,6 +96,7 @@ class MonotonePlannerNode():
 
 	def update_pose(self,cam_pose):
 		self.__camera.new_pose(cam_pose)
+		self.__time = cam_pose.time
 
 
 	# def get_measure(self,data):

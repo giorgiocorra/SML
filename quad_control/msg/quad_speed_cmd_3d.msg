@@ -2,6 +2,9 @@ float64 vx
 float64 vy
 float64 vz
 
-float64 w_pitch
-float64 w_roll
-float64 w_yaw
+float64 wx
+float64 wy
+float64 wz
+
+float64 time
+

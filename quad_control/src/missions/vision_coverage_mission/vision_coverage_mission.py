@@ -29,6 +29,15 @@ norm = numpy.linalg.norm
 # for subscribing to topics, and publishing
 import rospy
 
+import rospkg
+import sys
+# get an instance of RosPack with the default search paths
+rospack = rospkg.RosPack()
+sys.path.insert(0, rospack.get_path('quad_control'))
+
+# for launching node of collision avoidance, only if necessary
+import roslaunch
+
 import threading
 import time
 
@@ -69,9 +78,13 @@ class LTLMission(mission.Mission):
         # controller needs to have access to STATE: comes from simulator
         self.SubToSim = rospy.Subscriber("quad_state", quad_state, self.get_state_from_simulator)
 
-        # subscribe to velocity message published by the planner
+        # subscribe to velocity message published by the planner or by collision avoidance node
+        collision_av_active = rospy.get_param("collision_avoidance_active", True)
 
-        rospy.Subscriber("quad_speed_cmd_3d", quad_speed_cmd_3d, self.set_command)
+        if (collision_av_active):
+            rospy.Subscriber("quad_speed_cmd_avoid", quad_speed_cmd_3d, self.set_command)
+        else:
+            rospy.Subscriber("quad_max_speed_cmd", quad_speed_cmd_3d, self.set_command)
         
         # controllers selected by default
         self.ControllerObject = controller
@@ -93,6 +106,7 @@ class LTLMission(mission.Mission):
         # PITCH, ROLL, AND YAW (EULER ANGLES IN DEGREES)
         self.state_quad = numpy.zeros(3+3+3+3)
         self.state = 'stop'
+        self.changed_state = False
         self.long_rate = 0.
         self.lat_rate = 0.
         self.long = 0.
@@ -202,6 +216,7 @@ class LTLMission(mission.Mission):
         cam_pose.vx = v_camera[0]
         cam_pose.vy = v_camera[1]
         cam_pose.vz = v_camera[2]
+        cam_pose.time = simulator_message.time
 
         self.pub_cam_pose.publish(cam_pose)
 
@@ -223,10 +238,13 @@ class LTLMission(mission.Mission):
             self.long_rate = omega_xyz[2]
             self.lat_rate = sin(psi)*omega_xyz[0] - cos(psi)*omega_xyz[1] 
             
-            omega = [0, 0, self.long_rate]          # useless, because the yaw controller is not working in simulation
+            omega = [0, 0, 0]          # useless, because the yaw controller is not working in simulation
+
+            if (self.changed_state)and (any(vel)):
+                self.changed_state = False
 
             #rospy.logwarn('Velocity: ' + str(vel) + ' Yaw rate: ' + str(self.long_rate) + ' Pitch rate: ' + str(self.lat_rate))
-            if (norm(vel)<1e-2)and(norm(omega_xyz)<1e-2):
+            if (not self.changed_state)and(norm(vel)<1e-2)and(norm(omega_xyz)<1e-2):
                 rospy.logerr('Final position reached')
                 self.stop_the_quad()
             else:
@@ -239,6 +257,7 @@ class LTLMission(mission.Mission):
     def stop_the_quad(self,data = None):
 
         self.state = 'stop'
+        self.changed_state = False              # just in case it wasn't already reset
         self.stop_planner()
 
         if self.ControllerObject.__class__ != self.inner['controller']["Default"]:
@@ -264,6 +283,7 @@ class LTLMission(mission.Mission):
     # callback for service for initial positioning of camera
     def place_camera(self,data = None):
 
+        self.changed_state = False              # just in case it wasn't already reset
         self.stop_planner()
 
         if self.ControllerObject.__class__ != self.inner['controller']["Default"]:
@@ -300,6 +320,7 @@ class LTLMission(mission.Mission):
     def start_speed_control(self,data=None):
 
         self.state = 'speed'
+        self.changed_state = True               # to avoid stopping because of the delay in the answer of the planner
         self.start_planner()
 
         if self.ControllerObject.__class__ != self.inner['controller']["SimplePIDSpeedController_3d"]:

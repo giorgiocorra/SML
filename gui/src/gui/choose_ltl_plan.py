@@ -139,6 +139,18 @@ class ChooseLTLPlanPlugin(Plugin):
 
         self.process = launch.launch(node)
 
+        # launch collision avoidance node if it is active
+
+        collision_av_active = rospy.get_param("collision_avoidance_active", True)
+
+        if (collision_av_active):        
+            package = 'quad_control'
+            executable = 'collision_avoidance_node.py'
+            node = roslaunch.core.Node(package, executable, output = "screen")
+            launcher = roslaunch.scriptapi.ROSLaunch()
+            launcher.start()
+            launcher.launch(node)
+
         self.trace = []
         self.canvas = None
         self.fig = None

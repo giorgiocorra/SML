@@ -1,3 +1,5 @@
+import rospy
+
 import numpy as np
 norm = np.linalg.norm
 
@@ -13,25 +15,23 @@ import pickle
 
 # Distance functions
 
-D_OPT = 6.
-
-def f(x):
+def f(x, D_OPT):
 	"""Function that weights the distance"""
 	value = x/D_OPT * exp(1-x/D_OPT)
 	return value
 
-def d_f(x):
+def d_f(x, D_OPT):
 	"""Derivative of f(x)"""
 	value = exp(1-x/D_OPT) * (1-x/D_OPT) / D_OPT
 	return value
 
-def f_bar(x):
+def f_bar(x, D_OPT):
 	"""f(x)/x**2"""
-	return f(x)/x**2
+	return f(x, D_OPT)/x**2
 	
-def d_f_bar(x):
+def d_f_bar(x, D_OPT):
 	"""Derivative of f_bar"""
-	return (x*d_f(x) - 2*f(x)) / (x**3)
+	return (x*d_f(x, D_OPT) - 2*f(x, D_OPT)) / (x**3)
 
 # Classes: landmark, list of landmarks and camera
 
@@ -86,13 +86,13 @@ class Landmark:
 		string += "\nu = " + str(self.u)
 		return string
 	
-	def is_visible(self,cam):
-		if (self.vision(cam) > 0.):
+	def is_visible(self,cam, D_OPT):
+		if (self.vision(cam, D_OPT) > 0.):
 			return True
 		else:
 			return False
 	
-	def vision(self,cam):
+	def vision(self,cam, D_OPT):
 		q = self.q
 		u = self.u
 		p = cam.p
@@ -101,7 +101,7 @@ class Landmark:
 		cos_alpha = (q-p).dot(v)
 		cos_beta = (p-q).dot(u)
 		if (cos_alpha>0.)and(cos_beta>0.):
-			return f_bar(dist) * cos_alpha * cos_beta
+			return f_bar(dist, D_OPT) * cos_alpha * cos_beta
 		else:
 			return 0.
 
@@ -143,23 +143,23 @@ class Landmark_list:
 		else:
 			return []
 	
-	def vision(self,cam):
+	def vision(self,cam, D_OPT):
 		vis = 0.
 		for lm in self.lst:
-			vis += lm.vision(cam)	
+			vis += lm.vision(cam, D_OPT)	
 		return vis
 		
-	def visible_set(self,cam):
+	def visible_set(self, cam, D_OPT):
 		vis_set = Landmark_list([])
 		for lm in self.lst:
-			if (lm.is_visible(cam)):
+			if (lm.is_visible(cam, D_OPT)):
 				vis_set.append(lm)
 		return vis_set		
 
 # Gradient computation
 
-def linear_velocity(cam, Q):
-	Q_v = Q.visible_set(cam)
+def linear_velocity(cam, Q, D_OPT):
+	Q_v = Q.visible_set(cam, D_OPT)
 	dim = len(cam.p)
 	p = cam.p
 	v = cam.v
@@ -169,14 +169,14 @@ def linear_velocity(cam, Q):
 		u = Q_v.lst[i].u
 		r = q-p
 		dist = norm(r)
-		s_1 = d_f_bar(dist)/dist * r.dot(u)
+		s_1 = d_f_bar(dist, D_OPT)/dist * r.dot(u)
 		m_1 = np.transpose([r])*r
-		s_2 = f_bar(dist)
+		s_2 = f_bar(dist, D_OPT)
 		m_2 = np.transpose([u]) * r + (r.dot(u)) * np.identity(dim)
 		sum += s_1 * m_1 + s_2 * m_2
 	return sum.dot(v)
 
-# # Test
+# Test
 # from utility_functions import unit_vec
 # from math import pi
 # lmk_0 = Landmark([-3.,-1.,0.],unit_vec(pi/2, pi/6))
@@ -186,11 +186,11 @@ def linear_velocity(cam, Q):
 # p = [-2.,1.,0.75]
 # v = unit_vec(-2*pi/3,-3*pi/4)
 # cam = Camera(p,v)
-# print linear_velocity(cam, landmarks)
+# print linear_velocity(cam, landmarks, D_OPT = 6.)
 
 
-def angular_velocity(cam,Q):
-	Q_v = Q.visible_set(cam)
+def angular_velocity(cam,Q, D_OPT):
+	Q_v = Q.visible_set(cam, D_OPT)
 	dim = len(cam.p)
 	p = cam.p
 	v = cam.v
@@ -202,7 +202,7 @@ def angular_velocity(cam,Q):
 		u = Q_v.lst[i].u
 		r = q-p
 		dist = norm(r)
-		sum += f_bar(dist) * (-r).dot(u) * r
+		sum += f_bar(dist, D_OPT) * (-r).dot(u) * r
 	
 	if (dim == 3):
 		S_v = skew(v)
