@@ -21,6 +21,10 @@ class CollisionAvoidanceNode():
 
 		self.namespace = namespace
 
+		smooth = get("smooth",True)
+
+		freq = get("planner_frequency",1e1)
+
 		x_min = get("x_min",-3.)
 		y_min = get("y_min",-3.)
 		z_min = get("z_min",0.)
@@ -31,6 +35,7 @@ class CollisionAvoidanceNode():
 		delta_walls_y = get("delta_walls_y", 0.5)
 		delta_walls_z = get("delta_walls_z", 0.3)
 		DELTA_OTHERS = get("delta_others", 2.)
+		DELTA_WORRY = get("delta_worry", 0.5)
 		
 		P_MIN = np.array([x_min,y_min,z_min])
 		P_MAX = np.array([x_max,y_max,z_max])
@@ -42,7 +47,7 @@ class CollisionAvoidanceNode():
 		self.omega_max = np.zeros(3)
 		self.p_dot_star = np.zeros(3)
 		self.omega_star = np.zeros(3)
-		self.p = [0,0,2]				# so that it does not stop the quad movement
+		self.p = [0,0,2]				# so that it does not stop the quad movement, it will be updated
 		self.p_others = []
 		self.time = 0.
 		self.p_dictionary = {}
@@ -56,10 +61,14 @@ class CollisionAvoidanceNode():
 
 		self.star_speed_publisher = rospy.Publisher(star_speed_topic, quad_speed_cmd_3d, queue_size=10)
 
-		rate = rospy.Rate(1e1)
+		rate = rospy.Rate(freq)
 		while not rospy.is_shutdown():
-			W = coll_av.wall_directions(self.p, self.p_others, P_MIN, P_MAX, DELTA_WALLS, DELTA_OTHERS)
-			self.p_dot_star = coll_av.collision_avoidance_vel(self.p_dot_max, W)
+			if (smooth):
+				W, Lambda = coll_av.wall_directions_smooth(self.p, self.p_others, P_MIN, P_MAX, DELTA_WALLS, DELTA_OTHERS, DELTA_WORRY)
+				self.p_dot_star = coll_av.collision_avoidance_vel_smooth(self.p_dot_max, W, Lambda)
+			else:
+				W = coll_av.wall_directions(self.p, self.p_others, P_MIN, P_MAX, DELTA_WALLS, DELTA_OTHERS)
+				self.p_dot_star = coll_av.collision_avoidance_vel(self.p_dot_max, W)
 			self.omega_star = self.omega_max
 			msg = quad_speed_cmd_3d()
 			msg.vx = self.p_dot_star[0]

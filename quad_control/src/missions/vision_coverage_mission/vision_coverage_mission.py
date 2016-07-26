@@ -64,6 +64,8 @@ class LTLMission(mission.Mission):
 
         self.place_service = rospy.Service('PlaceTheCamera', GotoPose, self.place_camera)
 
+        rospy.Service('slow_take_off', Empty, self.take_off)
+
         rospy.Service('start_speed_control', Empty, self.start_speed_control)
         
         # converting our controlller standard into iris+ standard
@@ -78,13 +80,17 @@ class LTLMission(mission.Mission):
         # controller needs to have access to STATE: comes from simulator
         self.SubToSim = rospy.Subscriber("quad_state", quad_state, self.get_state_from_simulator)
 
-        # subscribe to velocity message published by the planner or by collision avoidance node
-        collision_av_active = rospy.get_param("collision_avoidance_active", True)
+        # # subscribe to velocity message published by the planner or by collision avoidance node
+        # collision_av_active = rospy.get_param("collision_avoidance_active", True)
 
-        if (collision_av_active):
-            rospy.Subscriber("quad_speed_cmd_avoid", quad_speed_cmd_3d, self.set_command)
-        else:
-            rospy.Subscriber("quad_max_speed_cmd", quad_speed_cmd_3d, self.set_command)
+        # if (collision_av_active):
+        #     rospy.Subscriber("quad_speed_cmd_avoid", quad_speed_cmd_3d, self.set_command)
+        # else:
+        #     rospy.Subscriber("quad_max_speed_cmd", quad_speed_cmd_3d, self.set_command)
+
+        rospy.Subscriber("quad_speed_magnitude",quad_speed_cmd_3d, self.set_command)
+
+
         
         # controllers selected by default
         self.ControllerObject = controller
@@ -340,3 +346,13 @@ class LTLMission(mission.Mission):
         rospy.wait_for_service(service_name,2.0)
         start_planner_srv = rospy.ServiceProxy(service_name, Empty,2.0)
         start_planner_srv()
+
+    def take_off(self, data = None):
+        pose = GotoPose()
+        pose.x = self.state_quad[0]
+        pose.y = self.state_quad[1]
+        pose.z = self.state_quad[2] + 0.5
+        pose.psi = self.long
+        pose.theta = self.lat
+        self.place_camera(pose)
+

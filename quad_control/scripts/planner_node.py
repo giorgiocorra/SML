@@ -42,13 +42,14 @@ class MonotonePlannerNode():
 		self.speed_controller = rospy.Publisher(speed_command_topic, quad_speed_cmd_3d, queue_size=10)
 
 		self.D_OPT = rospy.get_param("D_OPT")
+		freq = rospy.get_param("planner_frequency",1e1)
 		self.__landmarks = cov.Landmark_list()
 		self.__camera = cov.Camera()
 		self.__time = 0.
 
 		rospy.Subscriber('camera_pose', camera_pose, self.update_pose)
 
-		rospy.Service("/"+self.namespace+'load_lmks', Filename, self.load_lmks)
+		rospy.Service("/"+self.namespace+'load_lmks_planner', Filename, self.load_lmks)
 		rospy.Service("/"+self.namespace+'start_planner', Empty, self.start_planner_execution)
 		rospy.Service("/"+self.namespace+'stop_planner', Empty, self.stop)
 
@@ -62,7 +63,7 @@ class MonotonePlannerNode():
 			rate.sleep()
 
 		# Start of the plan
-		rate = rospy.Rate(1e1)		
+		rate = rospy.Rate(freq)		
 
 		while not rospy.is_shutdown():
 			if self.state=="stop":

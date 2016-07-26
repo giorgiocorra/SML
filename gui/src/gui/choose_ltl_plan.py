@@ -151,6 +151,13 @@ class ChooseLTLPlanPlugin(Plugin):
             launcher.start()
             launcher.launch(node)
 
+        package = 'quad_control'
+        executable = 'magnitude_control_node.py'
+        node = roslaunch.core.Node(package, executable, output = "screen")
+        launcher = roslaunch.scriptapi.ROSLaunch()
+        launcher.start()
+        launcher.launch(node)
+
         self.trace = []
         self.canvas = None
         self.fig = None
@@ -174,10 +181,14 @@ class ChooseLTLPlanPlugin(Plugin):
         self._widget.ltl_filename.setText(os.path.basename(self.filename))
 
     def load_lmks(self):
-        service_name = "/"+ self.namespace+'load_lmks'
+        rospy.logwarn("Filename:  " + self.filename)
+        service_name = "/"+ self.namespace+'load_lmks_planner'
         rospy.wait_for_service(service_name,2.0)
         load_lmks_srv = rospy.ServiceProxy(service_name, Filename,2.0)
-        rospy.logwarn("Filename:  " + self.filename)
+        load_lmks_srv(self.filename)
+        service_name = "/"+ self.namespace+'load_lmks_magnitude_control'
+        rospy.wait_for_service(service_name,2.0)
+        load_lmks_srv = rospy.ServiceProxy(service_name, Filename,2.0)
         load_lmks_srv(self.filename)
 
     # def get_initial_position(self):
@@ -214,9 +225,10 @@ class ChooseLTLPlanPlugin(Plugin):
         start_speed_srv()
 
     def slow_take_off(self):
-        ref = self.current_position
-        ref[2] += 0.5
-        #self.stop()
+        service_name = "/"+ self.namespace+'slow_take_off'
+        rospy.wait_for_service(service_name,2.0)
+        slow_take_off_srv = rospy.ServiceProxy(service_name, Empty,2.0)
+        slow_take_off_srv()
 
     # def redraw(self,d):
     #     if self.trace and self.ax_trace:

@@ -64,6 +64,9 @@ class Camera:
 		self.p = np.array([cam_pose.px,cam_pose.py,cam_pose.pz])
 		self.v = np.array([cam_pose.vx,cam_pose.vy,cam_pose.vz])
 
+	def change_position(self,p_new):
+		self.p = p_new
+
 # Test
 # cam = Camera([-2.,1.,0.75],[1.,0.,0.])
 # print cam
@@ -240,3 +243,38 @@ def read_lmks_from_file(filename):
 	lmks = pickle.load(file_object)
 	file_object.close()
 	return lmks
+
+def backtracking(cam, Q, p_dot_max, p_dot_star, D_OPT, v_lim=0.3, alpha=1, beta=0.5, tau=0.9, t_s=0.1, v_min=1e-2):
+	f_now = Q.vision(cam,D_OPT)
+	p = cam.position()
+	delta_p = p_dot_star.dot(t_s*v_lim)
+	p_next = p + delta_p.dot(alpha)
+	cam_next = Camera(cam.position(), cam. orientation_as_vector())
+	f_next = Q.vision(cam_next,D_OPT)
+	scal = np.asscalar(p_dot_max.dot(delta_p))
+	while (f_next < f_now + beta * alpha * scal):
+		alpha *= tau
+		p_next = p + delta_p.dot(alpha)
+		cam_next.change_position(p_next)
+		f_next = Q.vision(cam_next,D_OPT)
+		if (norm(alpha * delta_p / t_s) < v_min):
+			delta_p  = np.zeros(3)
+			break
+	return delta_p.dot(alpha/t_s)
+
+# Test
+# from utility_functions import unit_vec
+# from math import pi
+# D_OPT = 3
+# lmk_0 = Landmark([-3.,-1.,0.],unit_vec(pi/2, pi/6))
+# lmk_1 = Landmark([-2.,-1.,0.],unit_vec(pi/3, -pi/4))
+# lmk_2 = Landmark([-1.,-1.,0.],unit_vec(pi/3, 0))
+# Q = Landmark_list([lmk_0, lmk_1, lmk_2])
+# p = np.array([-0.9135, 2.1766, 0.4850])
+# v =  unit_vec(-1.2489, 2.6194)
+# cam = Camera(p,v)
+# p_dot_max = linear_velocity(cam, Q, D_OPT)
+# p_dot_star = np.array([0.9196, -0.1812, -0.3486])
+# print backtracking(cam,Q, p_dot_max, p_dot_star,D_OPT)
+
+
