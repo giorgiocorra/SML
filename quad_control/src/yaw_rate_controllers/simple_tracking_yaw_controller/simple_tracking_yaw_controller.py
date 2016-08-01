@@ -5,6 +5,7 @@ import numpy as np
 
 from .. import yaw_controller as yc
 
+import rospy
 
 class SimpleTrackingYawController(yc.YawController):
 
@@ -44,6 +45,7 @@ class SimpleTrackingYawController(yc.YawController):
         psi_star     = state_desired[0]
         psi_star_dot = state_desired[1]
         psi_dot      = psi_star_dot - self.__gain*np.sin(psi - psi_star)
+        #rospy.logerr("Psi_dot:%f Psi:%f Psi_star:%f"%(psi_dot, psi, psi_star))
         yaw_rate     = 1.0/np.cos(phi)*(np.cos(theta)*psi_dot - np.sin(phi)*theta_dot)
         
         return yaw_rate

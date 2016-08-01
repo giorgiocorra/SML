@@ -72,6 +72,8 @@ class SimulatorNode():
 
 
     def __init__(self):
+
+        self.namespace = rospy.get_namespace()[1:]
         #TODO lowercase for non-class names
         #TODO leading underscores for internal variables
 

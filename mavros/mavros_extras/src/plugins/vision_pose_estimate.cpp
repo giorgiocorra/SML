@@ -48,7 +48,7 @@ public:
 
 		// tf params
 		sp_nh.param("tf/listen", tf_listen, false);
-		sp_nh.param<std::string>("tf/frame_id", tf_frame_id, "local_origin");
+		sp_nh.param<std::string>("tf/frame_id", tf_frame_id, "map");
 		sp_nh.param<std::string>("tf/child_frame_id", tf_child_frame_id, "vision");
 		sp_nh.param("tf/rate_limit", tf_rate, 50.0);
 
@@ -59,6 +59,7 @@ public:
 		}
 		else {
 			vision_sub = sp_nh.subscribe("pose", 10, &VisionPoseEstimatePlugin::vision_cb, this);
+			vision_cov_sub = sp_nh.subscribe("pose_cov", 10, &VisionPoseEstimatePlugin::vision_cov_cb, this);
 		}
 	}
 
@@ -72,6 +73,7 @@ private:
 	UAS *uas;
 
 	ros::Subscriber vision_sub;
+	ros::Subscriber vision_cov_sub;
 
 	std::string tf_frame_id;
 	std::string tf_child_frame_id;
@@ -113,7 +115,7 @@ private:
 
 		auto position = UAS::transform_frame_enu_ned(Eigen::Vector3d(tr.translation()));
 		auto rpy = UAS::quaternion_to_rpy(
-				UAS::transform_frame_ned_enu(Eigen::Quaterniond(tr.rotation())));
+				UAS::transform_orientation_enu_ned(Eigen::Quaterniond(tr.rotation())));
 
 		vision_position_estimate(stamp.toNSec() / 1000,
 				position.x(), position.y(), position.z(),
@@ -134,6 +136,13 @@ private:
 	void vision_cb(const geometry_msgs::PoseStamped::ConstPtr &req) {
 		Eigen::Affine3d tr;
 		tf::poseMsgToEigen(req->pose, tr);
+
+		send_vision_estimate(req->header.stamp, tr);
+	}
+
+	void vision_cov_cb(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr &req) {
+		Eigen::Affine3d tr;
+		tf::poseMsgToEigen(req->pose.pose, tr);
 
 		send_vision_estimate(req->header.stamp, tr);
 	}

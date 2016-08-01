@@ -34,7 +34,7 @@ class ChooseMissionPlugin(Plugin):
     def __init__(self, context,namespace = None):
 
         # it is either "" or the input given at creation of plugin
-        self.namespace = self._parse_args(context.argv())
+        self.namespace = rospy.get_namespace()[1:]
         self.context   = context
 
         super(ChooseMissionPlugin, self).__init__(context)
@@ -197,6 +197,7 @@ class ChooseMissionPlugin(Plugin):
 
         if 'Vision' in self.__head_class_key:
             self._widget.tabWidget.addTab(self.choose_ltl_mission._widget,'Vision')
+            self._widget.tabWidget.addTab(self.speed_controller_tuning._widget,'Speed controller tuning')
 
         if 'SpeedControllerTuning' in self.__head_class_key:
             self._widget.tabWidget.addTab(self.speed_controller_tuning._widget,'Speed controller tuning')

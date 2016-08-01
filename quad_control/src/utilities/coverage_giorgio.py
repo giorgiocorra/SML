@@ -3,13 +3,14 @@ import rospy
 import numpy as np
 norm = np.linalg.norm
 
-from math import exp,tan,cos
+from math import exp,tan,cos,pi
 
 #from quaternion_utilities import q_mult, qv_mult
 
-from utilities.utility_functions import skew, lat_long_from_unit_vec
+from utilities.utility_functions import skew, lat_long_from_unit_vec, unit_vec_from_lat_long
 
 import geometry_msgs.msg as gms
+from quad_control.srv import LandmarksTrade
 
 import pickle
 
@@ -108,6 +109,7 @@ class Landmark:
 		else:
 			return 0.
 
+
 #Test
 # from utility_functions import unit_vec
 # from math import pi
@@ -157,7 +159,58 @@ class Landmark_list:
 		for lm in self.lst:
 			if (lm.is_visible(cam, D_OPT)):
 				vis_set.append(lm)
-		return vis_set		
+		return vis_set
+
+	def list(self):
+		return self.lst
+
+	def to_lists(self):
+		q = []
+		u = []
+		for lmk in self.lst:
+			q.extend(list(lmk.q[:]))
+			long_u , lat_u =lat_long_from_unit_vec(lmk.u)
+			u.append(long_u)
+			u.append(lat_u)
+		return q,u
+
+	def from_lists(self,q,u):
+		l_q = int(len(q)/3)
+		l_u = int(len(u)/2)
+		if not(l_q==l_u):
+			print "Error: lists of different lengths"
+		else:
+			for i in range(l_q):
+				q_0 = q[3*i:3*(i+1)]
+				u_0 = unit_vec_from_lat_long(u[2*i],u[2*i+1])
+				lmk = Landmark(q_0,u_0)
+				self.append(lmk)
+
+# Test
+# from utilities.utility_functions import unit_vec
+# q_0 = [-3.,-1.,0.]
+# q_1 = [-2.,-1.,0.]
+# q_2 = [-1.,-1.,0.]
+# psi_0 = pi/2.
+# theta_0 = pi/6.
+# psi_1 = pi/3.
+# theta_1 = -pi/4.
+# psi_2 = pi/3.
+# theta_2 = 0.
+# u_0 = unit_vec(psi_0, theta_0)
+# u_1 = unit_vec(psi_1, theta_1)
+# u_2 = unit_vec(psi_2, theta_2)
+# lm_0 = Landmark(q_0,u_0)
+# lm_1 = Landmark(q_1,u_1)
+# lm_2 = Landmark(q_2,u_2)
+# lmk_list = Landmark_list([lm_0,lm_1,lm_2])
+# q,u = lmk_list.to_lists()
+# print q
+# print u
+# new_lmk_lst = Landmark_list()
+# new_lmk_lst.from_lists(q,u)
+# print str(lmk_list)
+# print str(new_lmk_lst)
 
 # Gradient computation
 
@@ -277,4 +330,68 @@ def backtracking(cam, Q, p_dot_max, p_dot_star, D_OPT, v_lim=0.3, alpha=1, beta=
 # p_dot_star = np.array([0.9196, -0.1812, -0.3486])
 # print backtracking(cam,Q, p_dot_max, p_dot_star,D_OPT)
 
+def trade_function(cam_i,Q_i,cam_j,Q_j,D_OPT):
+	result = False
 
+	list_i = []
+	list_j = []
+
+	for lmk in Q_i.list():
+		if (lmk.vision(cam_j,D_OPT) > lmk.vision(cam_i,D_OPT)):
+			result = True
+			list_j.append(lmk)
+		else:
+			list_i.append(lmk)
+
+	for lmk in Q_j.list():
+		if (lmk.vision(cam_i,D_OPT) > lmk.vision(cam_j,D_OPT)):
+			result = True
+			list_i.append(lmk)
+		else:
+			list_j.append(lmk)
+
+	return result, Landmark_list(list_i), Landmark_list(list_j)
+
+
+# # Test
+
+# D_OPT = 3
+# p_0 =  np.array([2.1840, -1.8528, 2.0772])
+# p_1 =  np.array([-2.2062, 1.8710, 2.1111])
+# v_0 = unit_vec_from_lat_long(2.49,-0.53)
+# v_1 = unit_vec_from_lat_long(-0.69, -0.54)
+# cam_0 = Camera(p_0,v_0)
+# cam_1 = Camera(p_1,v_1)
+# l = 0.5
+# u_l = unit_vec_from_lat_long(-pi/2,0)
+# u_r = unit_vec_from_lat_long(pi/2,0)
+# u_u = unit_vec_from_lat_long(0,pi/2)
+# u_b = unit_vec_from_lat_long(pi,0)
+# u_f = unit_vec_from_lat_long(0,0)
+# lmk_l_0 = Landmark([0., -l/2, l/2],u_l)
+# lmk_l_1 = Landmark([-l/3,-l/2, 3./4.*l],u_l)
+# lmk_l_2 = Landmark([-l/4, -l/2,  l/3],u_l)
+# lmk_r_0 = Landmark([0., l/2, l/2],u_r)
+# lmk_r_1 = Landmark([-l/4, l/2, 3/4*l],u_r)
+# lmk_r_2 = Landmark([-l/3, l/2, l/4 ],u_r)
+# lmk_u_0 = Landmark([0., 0., l],u_u)
+# lmk_u_1 = Landmark([-l/3, -l/3, l],u_u)
+# lmk_u_2 = Landmark([-l/4, l/4, l],u_u)
+# lmk_b_0 = Landmark([-l/2, 0., l/2],u_b)
+# lmk_b_1 = Landmark([-l/2, l/3, l/4],u_b)
+# lmk_b_2 = Landmark([-l/2, l/4, 2./3.*l],u_b)
+# lmk_f_0 = Landmark([l/2, 0., l/2],u_f)
+# lmk_f_1 = Landmark([l/2, l/3, 3./4.*l],u_f)
+# lmk_f_2 = Landmark([l/2, l/4, 2./3.*l],u_f)
+# Q_0 = Landmark_list([lmk_l_0,lmk_r_0,lmk_u_0,lmk_b_0,lmk_f_0])
+# Q_1 = Landmark_list([lmk_l_1,lmk_r_1,lmk_u_1,lmk_b_1,lmk_f_1])
+# Q_2 = Landmark_list([lmk_l_2,lmk_r_2,lmk_u_2,lmk_b_2,lmk_f_2])
+# result, Q_a, Q_b = trade_function(cam_0,Q_0,cam_1,Q_1,D_OPT)
+
+# for lmk in Q_a.list():
+# 	if (lmk.vision(cam_1,D_OPT) > lmk.vision(cam_0,D_OPT)):
+# 		print "ERROR"
+
+# for lmk in Q_b.list():
+# 	if (lmk.vision(cam_0,D_OPT) > lmk.vision(cam_1,D_OPT)):
+# 		print "ERROR"		

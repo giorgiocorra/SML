@@ -14,11 +14,11 @@ from yaw_rate_controllers.neutral_yaw_controller.neutral_yaw_controller import N
 from yaw_rate_controllers.simple_tracking_yaw_controller.simple_tracking_yaw_controller import SimpleTrackingYawController
 from yaw_rate_controllers import yaw_controllers_database
 
-from quad_control.srv import GotoPosition, GotoPose
+from quad_control.srv import GotoPosition, GotoPose, LandmarksTrade, Filename
 from std_srvs.srv import Empty,SetBool
 
 from utilities.utility_functions import skew, lat_long_from_unit_vec, unit_vec_from_lat_long
-from utilities.coverage_giorgio import Camera
+from utilities.coverage_giorgio import Camera, Landmark_list, read_lmks_from_file
 import math
 cos = math.cos
 sin = math.sin
@@ -41,6 +41,9 @@ import roslaunch
 import threading
 import time
 
+import json
+
+
 #from planner import MonotonePlanner
 
 class LTLMission(mission.Mission):
@@ -60,11 +63,17 @@ class LTLMission(mission.Mission):
 
         mission.Mission.__init__(self)
 
+        self.namespace = rospy.get_namespace()[1:]
+
+        self.start_planner()
+
         # service for setting camera orientation
 
         self.place_service = rospy.Service('PlaceTheCamera', GotoPose, self.place_camera)
 
         rospy.Service('slow_take_off', Empty, self.take_off)
+
+        rospy.Service("/"+self.namespace+'load_lmks_mission', Filename, self.load_lmks_callback)
 
         rospy.Service('start_speed_control', Empty, self.start_speed_control)
         
@@ -90,7 +99,9 @@ class LTLMission(mission.Mission):
 
         rospy.Subscriber("quad_speed_magnitude",quad_speed_cmd_3d, self.set_command)
 
-
+        # Trading landmarks
+        if (rospy.get_param("/trade_allowed",False)):
+            rospy.Service("/"+self.namespace+'change_landmarks', LandmarksTrade, self.change_landmarks_handle)
         
         # controllers selected by default
         self.ControllerObject = controller
@@ -117,6 +128,7 @@ class LTLMission(mission.Mission):
         self.lat_rate = 0.
         self.long = 0.
         self.lat = 0.
+        self.lmks = Landmark_list()
         
         
         
@@ -226,8 +238,8 @@ class LTLMission(mission.Mission):
 
         self.pub_cam_pose.publish(cam_pose)
 
-        if (self.state=='position')and(norm(self.command[0:3]-p)<1e-2):         # TODO: add condition on orientation of camera
-            rospy.logerr('Initial position reached')
+        if (self.state=='position')and(norm(self.command[0:3]-p)<1e-2)and(norm(self.command[11]-self.long)<1e-2):         # TODO: add condition on orientation of camera
+            rospy.logerr(self.namespace + ': Initial position reached')
             self.stop_the_quad()
 
 
@@ -250,9 +262,18 @@ class LTLMission(mission.Mission):
                 self.changed_state = False
 
             #rospy.logwarn('Velocity: ' + str(vel) + ' Yaw rate: ' + str(self.long_rate) + ' Pitch rate: ' + str(self.lat_rate))
-            if (not self.changed_state)and(norm(vel)<1e-2)and(norm(omega_xyz)<1e-2):
-                rospy.logerr('Final position reached')
+            if (not self.changed_state)and(norm(vel)<1e-1)and(norm(omega_xyz)<1e-1):
+                rospy.logerr(self.namespace + ': Final position reached')
                 self.stop_the_quad()
+                if (rospy.get_param("/trade_allowed",False)):
+                    rospy.logerr(self.namespace + ': Ready to trade')
+                    name_agent = self.namespace[:-1]        # remove the final character '/'
+                    q, u = self.lmks.to_lists()
+                    service_name = "/trade_request"
+                    rospy.wait_for_service(service_name,2.0)
+                    trade_request_srv = rospy.ServiceProxy(service_name, LandmarksTrade,2.0)
+                    trade_request_srv(q = q, u = u, name_agent = name_agent)
+
             else:
                 self.command = numpy.concatenate([pos, vel, acc, angles, omega])
 
@@ -264,15 +285,15 @@ class LTLMission(mission.Mission):
 
         self.state = 'stop'
         self.changed_state = False              # just in case it wasn't already reset
-        self.stop_planner()
+        #self.stop_planner()
 
-        if self.ControllerObject.__class__ != self.inner['controller']["Default"]:
-            rospy.logwarn("Switch to position controller")
-            ControllerClass      = self.inner['controller']["Default"]
+        if self.ControllerObject.__class__ != self.inner['controller']["SimplePIDController"]:
+            rospy.logwarn(self.namespace + "Switch to position controller")
+            ControllerClass      = self.inner['controller']["SimplePIDController"]
             self.ControllerObject = ControllerClass()
         
         if self.YawControllerObject.__class__ != self.inner['yaw_controller']["NeutralYawController"]:
-            rospy.logwarn("Switch to neutral yaw controller")
+            rospy.logwarn(self.namespace + "Switch to neutral yaw controller")
             ControllerClass      = self.inner['yaw_controller']["NeutralYawController"]
             self.YawControllerObject = ControllerClass()
 
@@ -281,7 +302,7 @@ class LTLMission(mission.Mission):
         self.command[6:9] = numpy.array([0.,0.,0.])
         self.command[9:12] = numpy.array([0.,0.,self.state_quad[8]])
         self.command[12:15] = numpy.array([0.,0.,0.])
-        rospy.logerr("Stopping the quad: ")
+        rospy.logerr(self.namespace + ": Stopping the quad: ")
         rospy.logwarn('Position: ' + str(self.command[0:3]))
         rospy.logwarn('Yaw: ' + str(self.long) + ' / Pitch: ' + str(self.lat))
         return {}
@@ -290,11 +311,11 @@ class LTLMission(mission.Mission):
     def place_camera(self,data = None):
 
         self.changed_state = False              # just in case it wasn't already reset
-        self.stop_planner()
+        #self.stop_planner()
 
-        if self.ControllerObject.__class__ != self.inner['controller']["Default"]:
+        if self.ControllerObject.__class__ != self.inner['controller']["SimplePIDController"]:
             rospy.logwarn("Switch to position controller")
-            ControllerClass      = self.inner['controller']["Default"]
+            ControllerClass      = self.inner['controller']["SimplePIDController"]
             self.ControllerObject = ControllerClass()
 
         if self.YawControllerObject.__class__ != self.inner['yaw_controller']["Default"]:
@@ -311,7 +332,7 @@ class LTLMission(mission.Mission):
         self.lat = data.theta
         self.long_rate = 0.
         self.lat_rate = 0.
-        rospy.logerr('Placing the camera:')
+        rospy.logerr(self.namespace + ': Placing the camera:')
         rospy.logwarn('Position: ' + str(self.command[0:3]))
         rospy.logwarn('Yaw: ' + str(self.long) + ' / Pitch: ' + str(self.lat))
         self.state = 'position'
@@ -327,7 +348,6 @@ class LTLMission(mission.Mission):
 
         self.state = 'speed'
         self.changed_state = True               # to avoid stopping because of the delay in the answer of the planner
-        self.start_planner()
 
         if self.ControllerObject.__class__ != self.inner['controller']["SimplePIDSpeedController_3d"]:
             rospy.logwarn("Switch to velocity controller")
@@ -355,4 +375,34 @@ class LTLMission(mission.Mission):
         pose.psi = self.long
         pose.theta = self.lat
         self.place_camera(pose)
+        return{}
+
+    def load_lmks_callback(self, data):
+        self.lmks = read_lmks_from_file(data.filename)
+        q, u = self.lmks.to_lists()
+        service_name = "/"+ self.namespace+'load_lmks_planner'
+        rospy.wait_for_service(service_name,2.0)
+        load_lmks_srv = rospy.ServiceProxy(service_name, LandmarksTrade,2.0)
+        load_lmks_srv(q = q, u = u, name_agent = '')
+        service_name = "/"+ self.namespace+'load_lmks_magnitude_control'
+        rospy.wait_for_service(service_name,2.0)
+        load_lmks_srv = rospy.ServiceProxy(service_name, LandmarksTrade,2.0)
+        load_lmks_srv(q = q, u = u, name_agent = '')
+        return {}
+
+
+    def change_landmarks_handle(self,data):
+        rospy.logerr(self.namespace + ': Landmarks received')
+        self.lmks = Landmark_list()
+        self.lmks.from_lists(q = data.q, u = data.u)
+        service_name = "/"+ self.namespace+'load_lmks_planner'
+        rospy.wait_for_service(service_name,2.0)
+        load_lmks_srv = rospy.ServiceProxy(service_name, LandmarksTrade,2.0)
+        load_lmks_srv(q = data.q, u = data.u, name_agent = '')
+        service_name = "/"+ self.namespace+'load_lmks_magnitude_control'
+        rospy.wait_for_service(service_name,2.0)
+        load_lmks_srv = rospy.ServiceProxy(service_name, LandmarksTrade,2.0)
+        load_lmks_srv(data)
+        self.start_speed_control(q = data.q, u = data.u, name_agent = '')
+        return {}
 

@@ -13,13 +13,13 @@ import geometry_msgs.msg as gms
 import tf.transformations as tf
 
 try:
-	from quad_control.srv import Filename
+	from quad_control.srv import Filename, LandmarksTrade
 	from std_srvs.srv import Empty
 	from quad_control.msg import quad_speed_cmd_3d
 	from quad_control.msg import camera_pose
 except ImportError:
 	pass
-import pickle
+import json
 import numpy as np
 
 # from converter_between_standards.rotorS_converter import RotorSConverter
@@ -31,25 +31,28 @@ import numpy as np
 
 class MonotonePlannerNode():
 	def __init__(self,namespace,firefly=False):
-		self.namespace = namespace
 
 		self.execute_plan = False
 
 		rospy.init_node('planner', anonymous=True)
 
+		self.namespace = rospy.get_namespace()[1:]
+
+		# rospy.logerr("Namespace name: " + self.namespace)
+
 		speed_command_topic = "/"+self.namespace+"quad_max_speed_cmd"
 
 		self.speed_controller = rospy.Publisher(speed_command_topic, quad_speed_cmd_3d, queue_size=10)
 
-		self.D_OPT = rospy.get_param("D_OPT")
+		self.D_OPT = rospy.get_param("/" + self.namespace+"D_OPT")
 		freq = rospy.get_param("planner_frequency",1e1)
 		self.__landmarks = cov.Landmark_list()
 		self.__camera = cov.Camera()
 		self.__time = 0.
 
-		rospy.Subscriber('camera_pose', camera_pose, self.update_pose)
+		rospy.Subscriber("/"+self.namespace+'camera_pose', camera_pose, self.update_pose)
 
-		rospy.Service("/"+self.namespace+'load_lmks_planner', Filename, self.load_lmks)
+		rospy.Service("/"+self.namespace+'load_lmks_planner', LandmarksTrade, self.load_lmks)
 		rospy.Service("/"+self.namespace+'start_planner', Empty, self.start_planner_execution)
 		rospy.Service("/"+self.namespace+'stop_planner', Empty, self.stop)
 
@@ -119,7 +122,8 @@ class MonotonePlannerNode():
 		return {}
 
 	def load_lmks(self,data):
-		self.__landmarks = cov.read_lmks_from_file(data.filename)
+		self.__landmarks = cov.Landmark_list()
+		self.__landmarks.from_lists(q = data.q, u = data.u)
 		rospy.logwarn("Landmarks loaded: ")
 		rospy.logwarn(str(self.__landmarks))
 		return {}

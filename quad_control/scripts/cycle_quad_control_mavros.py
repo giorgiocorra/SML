@@ -296,15 +296,10 @@ class quad_controller():
 
     #callback for turning ON/OFF Mocap and turning OFF/ON the subscription to the simulator
     def handle_Mocap(self,req):
-
-
-
         # if mocap is turned on
         if self.flagMOCAP_On == True:
-
             # request to turn OFF Mocap, and turn on subscription to Simulator messages
             if req.On == False:
-
                 # in case Qs is not defined yet
                 try: 
                     # close mocap connection
@@ -321,7 +316,8 @@ class quad_controller():
 
                     # service has been provided
                     return Mocap_IdResponse(True,True)
-                except:
+                except Exception, e:
+                    rospy.logerr(e)
                     # service was NOT provided
                     return Mocap_IdResponse(True,False) 
 
@@ -342,67 +338,31 @@ class quad_controller():
                             body_indice=i
 
                 # save body id
-                self.body_id = req.id                        
-
+                self.body_id = req.id
 
                 if body_indice == -1:
-
                     # body does not exist
                     self.flagMOCAP = False
-
                     # body does not exist, but service was provided
                     return Mocap_IdResponse(False,True)
                 else:
                     # body exists
-                    
                     # set flag to on
                     self.flagMOCAP = True
-
                     # body EXISTS, and service was provided
                     return Mocap_IdResponse(True,True)
-
-
-                # # stop simulator
-                # stop = self.stop_simulator()
-
-                # # if simulator stopped
-                # if stop == True:
-
-                #     if body_indice == -1:
-
-                #         # body does not exist
-                #         self.flagMOCAP = False
-
-                #         # body does not exist, but service was provided
-                #         return Mocap_IdResponse(False,True)
-                #     else:
-                #         # body exists
-                        
-                #         # set flag to on
-                #         self.flagMOCAP = True
-
-                #         # body EXISTS, and service was provided
-                #         return Mocap_IdResponse(True,True)
-                # else:
-                #     self.flagMOCAP = False
-                #     # service was NOT provided
-                #     return Mocap_IdResponse(False,False)
-
-
         else:
             # if Mocap is turned off, and we are requested to turn it on
             if req.On == True:
                 # establish connection to qualisys
-                self.Qs = mocap_source.Mocap(info=0)
-
+                self.Qs = mocap_source.Mocap(info=1)
                 # stop subscription to data from simulator
                 # unsubscribe to topic
                 self.SubToSim.unregister()
-
                 self.flagMOCAP_On = True
-
                 # service was provided
                 return Mocap_IdResponse(False,True)
+
 
     # return list of bodies detected by mocap or numbers 1 to 99 if not available
     def handle_available_bodies(self, dummy):

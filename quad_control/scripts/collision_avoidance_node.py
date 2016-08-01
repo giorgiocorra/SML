@@ -19,23 +19,36 @@ from quad_control.msg import quad_speed_cmd_3d, camera_pose
 class CollisionAvoidanceNode():
 	def __init__(self,namespace=""):
 
-		self.namespace = namespace
+		self.namespace = rospy.get_namespace()[1:]
 
-		smooth = get("smooth",True)
+		smooth = get("/" + self.namespace + "smooth",True)
 
-		freq = get("planner_frequency",1e1)
+		freq = get("/" + self.namespace + "planner_frequency",1e1)
 
-		x_min = get("x_min",-3.)
-		y_min = get("y_min",-3.)
-		z_min = get("z_min",0.)
-		x_max = get("x_max",3.)
-		y_max = get("y_max",3.)
-		z_max = get("z_max",4.)
-		delta_walls_x = get("delta_walls_x", 0.5)
-		delta_walls_y = get("delta_walls_y", 0.5)
-		delta_walls_z = get("delta_walls_z", 0.3)
-		DELTA_OTHERS = get("delta_others", 2.)
-		DELTA_WORRY = get("delta_worry", 0.5)
+		x_min = get("/" + self.namespace + "x_min",-3.)
+		y_min = get("/" + self.namespace + "y_min",-3.)
+		z_min = get("/" + self.namespace + "z_min",0.)
+		x_max = get("/" + self.namespace + "x_max",3.)
+		y_max = get("/" + self.namespace + "y_max",3.)
+		z_max = get("/" + self.namespace + "z_max",4.)
+		delta_walls_x = get("/" + self.namespace + "delta_walls_x", 0.5)
+		delta_walls_y = get("/" + self.namespace + "delta_walls_y", 0.5)
+		delta_walls_z = get("/" + self.namespace + "delta_walls_z", 0.3)
+		DELTA_OTHERS = get("/" + self.namespace + "delta_others", 2.)
+		DELTA_WORRY = get("/" + self.namespace + "delta_worry", 0.5)
+		name_others = get("/" + self.namespace + "name_others", '')
+
+		if (name_others == ''):
+			self.p_others = []
+		else:
+			self.name_others = name_others.rsplit(' ')
+			self.p_others = np.zeros([len(self.name_others),3])
+			self.index_others = {}
+			i = 0
+			for ns in self.name_others:
+				self.index_others[ns] = i
+				i += 1
+				rospy.Subscriber("/" + ns + "/camera_pose", camera_pose, lambda data,ns = ns: self.camera_pose_others_callback(data,ns) )
 		
 		P_MIN = np.array([x_min,y_min,z_min])
 		P_MAX = np.array([x_max,y_max,z_max])
@@ -47,11 +60,9 @@ class CollisionAvoidanceNode():
 		self.omega_max = np.zeros(3)
 		self.p_dot_star = np.zeros(3)
 		self.omega_star = np.zeros(3)
-		self.p = [0,0,2]				# so that it does not stop the quad movement, it will be updated
-		self.p_others = []
-		self.time = 0.
-		self.p_dictionary = {}
-		self.p_others_dictionary = {}
+		self.ready = False
+		self.p = []	
+
 
 		max_speed_topic = "/" + self.namespace + "quad_max_speed_cmd"
 		star_speed_topic = "/" + self.namespace + "quad_speed_cmd_avoid"
@@ -62,6 +73,12 @@ class CollisionAvoidanceNode():
 		self.star_speed_publisher = rospy.Publisher(star_speed_topic, quad_speed_cmd_3d, queue_size=10)
 
 		rate = rospy.Rate(freq)
+		while not self.ready:			# wait for all the callbacks
+			if all(any(self.p_others[i]) for i in range(len(self.p_others))) and any(self.p):
+				self.ready = True
+			else:
+				rate.sleep()
+
 		while not rospy.is_shutdown():
 			if (smooth):
 				W, Lambda = coll_av.wall_directions_smooth(self.p, self.p_others, P_MIN, P_MAX, DELTA_WALLS, DELTA_OTHERS, DELTA_WORRY)
@@ -83,19 +100,12 @@ class CollisionAvoidanceNode():
 	def max_speed_callback(self, data):
 		self.p_dot_max = np.array([data.vx, data.vy, data.vz])
 		self.omega_max = np.array([data.wx, data.wy, data.wz])
-		self.time = data.time
-		self.p = self.p_dictionary[self.time]
-		self.p_others = self.p_others_dictionary[data.time]
-		# Remove useless entries from dictionaries
-		self.p_dictionary = {t:p for (t,p) in self.p_dictionary.items() if t < self.time}
-		self.p_others_dictionary = {t:p for (t,p) in self.p_others_dictionary.items() if t < self.time}
 
 	def camera_pose_callback(self,data):
-		time = data.time
-		pos = [data.px, data.py, data.pz]
-		self.p_dictionary[time] = pos 
-		# Fake update of position of others
-		self.p_others_dictionary[time] = []
+		self.p = np.array([data.px, data.py, data.pz])
+
+	def camera_pose_others_callback(self,data,ns):
+		self.p_others[self.index_others[ns]] = [data.px, data.py, data.pz] 
 
 
 

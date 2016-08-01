@@ -60,8 +60,7 @@ class SpeedTuningPlugin(Plugin):
     def __init__(self, context,namespace = None):
 
         # it is either "" or the input given at creation of plugin
-        self.namespace = self._parse_args(context.argv())
-
+        self.namespace = rospy.get_namespace()[1:]
 
         super(SpeedTuningPlugin, self).__init__(context)
         # Give QObjects reasonable names
@@ -113,34 +112,36 @@ class SpeedTuningPlugin(Plugin):
         self._widget.goto_init.clicked.connect(self.goto_initial_position)
         self._widget.stop.clicked.connect(lambda : self.stop())
 
+        self._widget.b_speed_cont.clicked.connect(self.switch_to_speed_cont)
 
         self.current_position = numpy.array([0]*3)
         self.initial_position = None
 
-        rospy.Subscriber("quad_state", quad_state, self.update_position)
+        self.sub_state = rospy.Subscriber("/"+self.namespace+"quad_state", quad_state, self.update_position)
 
-        speed_command_topic = "/"+self.namespace+"quad_speed_cmd_3d"
+        speed_command_topic = "/"+self.namespace+"quad_speed_3d_test"
 
         self.speed_controller = rospy.Publisher(speed_command_topic, quad_speed_cmd_3d, queue_size=10)
 
 
     def speed_command(self,v):
         s = self._widget.speed.value()
-        self.speed_controller.publish(quad_speed_cmd_3d(s*v[0],s*v[1],s*v[2]))
+        self.speed_controller.publish(quad_speed_cmd_3d(vx=s*v[0],vy=s*v[1],vz=s*v[2],wx=0.,wy=0.,wz=0.,time=0.))
 
     def goto_initial_position(self):
-        self.stop(numpy.concatenate(self.initial_position))
+        offset = numpy.array([0,0,self._widget.z_value.value()])
+        self.stop(self.initial_position + offset)
 
     def stop(self,position=numpy.array([0,0,1])):
 
-        service_name = "/"+ self.namespace+'StopTheQuad'
-        
+        service_name = "/"+ self.namespace+'PlaceTheCamera'
+        rospy.logerr("Call:" + service_name + " to " + str(position))
         rospy.wait_for_service(service_name,2.0)
-        stop = rospy.ServiceProxy(service_name, GotoPosition,2.0)
+        stop_srv = rospy.ServiceProxy(service_name, GotoPose,2.0)
 
         p = position.copy()
 
-        stop(x=p[0],y=p[1],z=p[2])
+        stop_srv(x=p[0],y=p[1],z=p[2], theta = 0, psi = 0)
 
     def use_speed_controller(self,val):
         service_name = "/"+ self.namespace+'use_speed_controller'
@@ -172,6 +173,17 @@ class SpeedTuningPlugin(Plugin):
         self.current_position = state_quad[0:3]
         self.trace.append(numpy.array([position[0],position[1],position[2]]))
 
+
+    def switch_to_speed_cont(self):
+        service_name = "/" + self.namespace+'use_speed_controller'
+        
+        rospy.wait_for_service(service_name,2.0)
+        use_speed_controller = rospy.ServiceProxy(service_name, SetBool,2.0)
+
+        try:
+            use_speed_controller(True)
+        except rospy.ServiceException as exc:
+          print("Service did not process request: " + str(exc))
 
     def _parse_args(self, argv):
         parser = argparse.ArgumentParser(prog='saver', add_help=False)

@@ -90,7 +90,7 @@ class AttitudeInnerLoopSimulator(simulator.Simulator):
 
         # gain of inner loop for attitude control
         ktt             = self.gain_inner_loop
-        unit_vector_des = force_3d/np.linalg.norm(force_3d)
+        unit_vector_des = force_3d/(np.linalg.norm(force_3d) + 1e-6)
         versor          = rotation.dot(uts.E3_VERSOR)
         omega           = ktt*uts.skew(unit_vector).dot(unit_vector_des)
 

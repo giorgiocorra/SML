@@ -44,6 +44,9 @@
 	<class name="setpoint_attitude" type="mavplugin::SetpointAttitudePlugin" base_class_type="mavplugin::MavRosPlugin">
 		<description>Send to FCU external attitude setpoint.</description>
 	</class>
+	<class name="setpoint_raw" type="mavplugin::SetpointRawPlugin" base_class_type="mavplugin::MavRosPlugin">
+		<description>Access to raw POSITION_TARGET_LOCAL_NED messages.</description>
+	</class>
 	<class name="vfr_hud" type="mavplugin::VfrHudPlugin" base_class_type="mavplugin::MavRosPlugin">
 		<description>Publish VFR HUD data and WIND estimations.</description>
 	</class>
@@ -58,6 +61,9 @@
 	</class>
 	<class name="manual_control" type="mavplugin::ManualControlPlugin" base_class_type="mavplugin::MavRosPlugin">
 		<description>Publish manual control values</description>
+	</class>
+	<class name="altitude" type="mavplugin::AltitudePlugin" base_class_type="mavplugin::MavRosPlugin">
+		<description>Publish altitude values</description>
 	</class>
 </library>
 

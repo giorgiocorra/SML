@@ -105,7 +105,7 @@ class positionPlotPlugin(Plugin):
     def __init__(self, context,namespace = None):
 
         # it is either "" or the input given at creation of plugin
-        self.namespace = self._parse_args(context.argv())
+        self.namespace = rospy.get_namespace()[1:]
 
         super(positionPlotPlugin, self).__init__(context)
         # Give QObjects reasonable names
@@ -618,7 +618,7 @@ class positionPlotPlugin(Plugin):
     def SetSubscription(self):
 
         if self._widget.ButtonSubscribe.isChecked():
-            self.sub = rospy.Subscriber(self.namespace+'quad_state_and_cmd', quad_state_and_cmd, self.callback)
+            self.sub = rospy.Subscriber('quad_state_and_cmd', quad_state_and_cmd, self.callback)
         else:
             # unsubscribe to topic
             self.sub.unregister()

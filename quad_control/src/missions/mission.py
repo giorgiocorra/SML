@@ -174,7 +174,7 @@ class Mission(js.Jsonable):
 		# converting our controlller standard into iris+ standard
 		self.iris_plus_converter_object_mission = IrisPlusConverter()
 
-		self.stop_service = rospy.Service('StopTheQuad', Empty, self.stop_the_quad)
+		self.stop_service = rospy.Service('StopTheQuad', GotoPosition, self.stop_the_quad)
 		pass
 		
 		
@@ -374,6 +374,7 @@ class Mission(js.Jsonable):
 		#rospy.logerr('Yaw rate: ' + str(yaw_rate))
 
 		self.rc_command(desired_3d_force_quad,yaw_rate)
+		#rospy.logerr('Yaw rate rc_command: ' + str(self.rc_output[3]))
 
 		self.real_publish(desired_3d_force_quad,yaw_rate,self.rc_output)
 

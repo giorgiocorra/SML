@@ -44,7 +44,11 @@ static const cmode_map arduplane_cmode_map = {
 	{ 12, "LOITER" },
 	{ 14, "LAND" },		// not in list
 	{ 15, "GUIDED" },
-	{ 16, "INITIALISING" }
+	{ 16, "INITIALISING" },
+	{ 17, "QSTABILIZE" },	// QuadPlane
+	{ 18, "QHOVER" },
+	{ 19, "QLOITER" },
+	{ 20, "QLAND" }
 };
 
 /** APM:Copter custom mode -> string
@@ -67,7 +71,8 @@ static const cmode_map arducopter_cmode_map = {
 	{ 13, "SPORT" },
 	{ 14, "FLIP" },
 	{ 15, "AUTOTUNE" },
-	{ 16, "POSHOLD" }
+	{ 16, "POSHOLD" },
+	{ 17, "BRAKE" }
 };
 
 /** APM:Rover custom mode -> string
@@ -93,6 +98,7 @@ static const cmode_map px4_cmode_map = {
 	{ px4::define_mode(px4::custom_mode::MAIN_MODE_POSCTL),           "POSCTL" },
 	{ px4::define_mode(px4::custom_mode::MAIN_MODE_OFFBOARD),         "OFFBOARD" },
 	{ px4::define_mode(px4::custom_mode::MAIN_MODE_STABILIZED),       "STABILIZED" },
+	{ px4::define_mode(px4::custom_mode::MAIN_MODE_RATTITUDE),        "RATTITUDE" },
 	{ px4::define_mode_auto(px4::custom_mode::SUB_MODE_AUTO_MISSION), "AUTO.MISSION" },
 	{ px4::define_mode_auto(px4::custom_mode::SUB_MODE_AUTO_LOITER),  "AUTO.LOITER" },
 	{ px4::define_mode_auto(px4::custom_mode::SUB_MODE_AUTO_RTL),     "AUTO.RTL" },
@@ -157,6 +163,8 @@ std::string UAS::str_mode_v10(uint8_t base_mode, uint32_t custom_mode) {
 			return str_mode_cmap(arduplane_cmode_map, custom_mode);
 		else if (type == MAV_TYPE_GROUND_ROVER)
 			return str_mode_cmap(apmrover2_cmode_map, custom_mode);
+		else if (type == MAV_TYPE_SUBMARINE)
+			return str_mode_cmap(arducopter_cmode_map, custom_mode);
 		else {
 			ROS_WARN_THROTTLE_NAMED(30, "uas", "MODE: Unknown APM based FCU! Type: %d", type);
 			return str_custom_mode(custom_mode);
@@ -198,7 +206,7 @@ static bool cmode_find_cmap(const cmode_map &cmap, std::string &cmode_str, uint3
 		os << " " << mode.second;
 
 	ROS_ERROR_STREAM_NAMED("uas", "MODE: Unknown mode: " << cmode_str);
-	ROS_DEBUG_STREAM_NAMED("uas", "MODE: Known modes are:" << os.str());
+	ROS_INFO_STREAM_NAMED("uas", "MODE: Known modes are:" << os.str());
 
 	return false;
 }
@@ -216,6 +224,8 @@ bool UAS::cmode_from_str(std::string cmode_str, uint32_t &custom_mode) {
 			return cmode_find_cmap(arduplane_cmode_map, cmode_str, custom_mode);
 		else if (type == MAV_TYPE_GROUND_ROVER)
 			return cmode_find_cmap(apmrover2_cmode_map, cmode_str, custom_mode);
+		else if (type == MAV_TYPE_SUBMARINE)
+			return cmode_find_cmap(arducopter_cmode_map, cmode_str, custom_mode);
 	}
 	else if (MAV_AUTOPILOT_PX4 == ap)
 		return cmode_find_cmap(px4_cmode_map, cmode_str, custom_mode);
@@ -257,11 +267,12 @@ std::string UAS::str_autopilot(enum MAV_AUTOPILOT ap)
 	return autopilot_strings[idx];
 }
 
-static const std::array<const std::string, 27> type_strings = {
+//! @p http://mavlink.org/messages/common#ENUM_MAV_TYPE
+static const std::array<const std::string, 28> type_strings = {
 	/*  0 */ "Generic",
 	/*  1 */ "Fixed-Wing",
 	/*  2 */ "Quadrotor",
-	/*  3 */ "Coaxial",
+	/*  3 */ "Coaxial-Heli",
 	/*  4 */ "Helicopter",
 	/*  5 */ "Antenna-Tracker",
 	/*  6 */ "GCS",
@@ -279,12 +290,13 @@ static const std::array<const std::string, 27> type_strings = {
 	/* 18 */ "Onboard-Controller",
 	/* 19 */ "VTOL-Duorotor",
 	/* 20 */ "VTOL-Quadrotor",
-	/* 21 */ "VTOL-RESERVED1",
+	/* 21 */ "VTOL-Tiltrotor",
 	/* 22 */ "VTOL-RESERVED2",
 	/* 23 */ "VTOL-RESERVED3",
 	/* 24 */ "VTOL-RESERVED4",
 	/* 25 */ "VTOL-RESERVED5",
-	/* 26 */ "Gimbal"
+	/* 26 */ "Gimbal",
+	/* 27 */ "ADS-B"
 };
 
 std::string UAS::str_type(enum MAV_TYPE type)

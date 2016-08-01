@@ -48,7 +48,7 @@ class ChooseSystemPlugin(Plugin):
     def __init__(self, context,namespace = None):
 
         # it is either "" or the input given at creation of plugin
-        self.namespace = self._parse_args(context.argv())
+        self.namespace = rospy.get_namespace()[1:]
 
 
         super(ChooseSystemPlugin, self).__init__(context)
@@ -144,10 +144,10 @@ class ChooseSystemPlugin(Plugin):
         
         try: 
             # time out of one second for waiting for service
-            rospy.wait_for_service(self.namespace+'StartSimulator',1.0)
+            rospy.wait_for_service('StartSimulator',1.0)
             
             try:
-                AskForStart = rospy.ServiceProxy(self.namespace+'StartSimulator', StartSim)
+                AskForStart = rospy.ServiceProxy('StartSimulator', StartSim)
 
                 # if button is pressed save data
                 if self._widget.start_radio_button.isChecked():
@@ -167,16 +167,17 @@ class ChooseSystemPlugin(Plugin):
                         self._widget.SimulatorSuccess.setChecked(True) 
                         self._widget.SimulatorFailure.setChecked(False) 
 
-            except rospy.ServiceException:
+            except rospy.ServiceException,e:
                 # print "Service call failed: %s"%e   
                 self._widget.SimulatorSuccess.setChecked(False) 
                 self._widget.SimulatorFailure.setChecked(True) 
+                rospy.logerr(e)
             
-        except: 
+        except Exception,e: 
             # print "Service not available ..."        
             self._widget.SimulatorSuccess.setChecked(False) 
             self._widget.SimulatorFailure.setChecked(True)
-            pass  
+            rospy.logerr(e)
 
     #@Slot(bool)
     def start_gazebo(self):
@@ -360,20 +361,21 @@ class ChooseSystemPlugin(Plugin):
                     self._widget.ExistsNot.setChecked(False)
 
 
-            except rospy.ServiceException:
+            except rospy.ServiceException,e:
                 # print "Service call failed: %s"%e   
                 self._widget.QualisysSuccess.setChecked(False) 
                 self._widget.QualisysFailure.setChecked(True) 
                 self._widget.Exists.setChecked(False)
                 self._widget.ExistsNot.setChecked(False)
+                rospy.logerr(e)
             
-        except: 
+        except Exception, e: 
             # print "Service not available ..."        
             self._widget.QualisysSuccess.setChecked(False) 
             self._widget.QualisysFailure.setChecked(True)
             self._widget.Exists.setChecked(False)
             self._widget.ExistsNot.setChecked(False)            
-            pass
+            rospy.logerr(e)
 
         # initialize list of available bodies
         self.set_up_body_list()
@@ -404,30 +406,32 @@ class ChooseSystemPlugin(Plugin):
                         self._widget.Exists.setChecked(False)
                         self._widget.ExistsNot.setChecked(True)
 
-            except rospy.ServiceException:
+            except rospy.ServiceException,e:
                 # print "Service call failed: %s"%e   
                 self._widget.QualisysSuccess.setChecked(False) 
                 self._widget.QualisysFailure.setChecked(True) 
                 self._widget.Exists.setChecked(False)
                 self._widget.ExistsNot.setChecked(False)
+                rospy.logerr(e)
             
-        except: 
+        except Exception,e:          
+            rospy.logerr(e)
             # print "Service not available ..."        
             self._widget.QualisysSuccess.setChecked(False) 
             self._widget.QualisysFailure.setChecked(True)
             self._widget.Exists.setChecked(False)
-            self._widget.ExistsNot.setChecked(False)            
-            pass
+            self._widget.ExistsNot.setChecked(False)   
 
 
 
     def set_up_body_list(self):
         # try to obtain list of available mocap bodies
         try:
-            rospy.wait_for_service(self.namespace+'MocapBodies', 1.)
-            req_bodies = rospy.ServiceProxy(self.namespace+'MocapBodies', MocapBodies)
+            rospy.wait_for_service('MocapBodies', 1.)
+            req_bodies = rospy.ServiceProxy('MocapBodies', MocapBodies)
             bodies = req_bodies().bodies
-        except:
+        except Exception,e:          
+            rospy.logerr(e)
             bodies = range(0,100)
 
         preferred_index = self._widget.MocapID.currentText()
@@ -443,8 +447,8 @@ class ChooseSystemPlugin(Plugin):
         try:
             new_index = bodies.index(int(preferred_index))
             self._widget.MocapID.setCurrentIndex(new_index)
-        except:
-            pass
+        except Exception,e:          
+            rospy.logerr(e)
 
 
 

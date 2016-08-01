@@ -4,7 +4,7 @@
  * @author Vladimir Ermakov <vooon341@gmail.com>
  */
 /*
- * Copyright 2014 Vladimir Ermakov.
+ * Copyright 2014,2015 Vladimir Ermakov.
  *
  * This file is part of the mavros package and subject to the license terms
  * in the top-level LICENSE file of the mavros repository.
@@ -24,6 +24,7 @@ UAS::UAS() :
 	tf2_listener(tf2_buffer, true),
 	type(MAV_TYPE_GENERIC),
 	autopilot(MAV_AUTOPILOT_GENERIC),
+	base_mode(0),
 	target_system(1),
 	target_component(1),
 	connected(false),
@@ -31,6 +32,7 @@ UAS::UAS() :
 	gps_epv(NAN),
 	gps_fix_type(0),
 	gps_satellites_visible(0),
+	time_offset(0),
 	fcu_caps_known(false),
 	fcu_capabilities(0)
 {}
@@ -41,10 +43,11 @@ void UAS::stop(void)
 
 /* -*- heartbeat handlers -*- */
 
-void UAS::update_heartbeat(uint8_t type_, uint8_t autopilot_)
+void UAS::update_heartbeat(uint8_t type_, uint8_t autopilot_, uint8_t base_mode_)
 {
 	type = type_;
 	autopilot = autopilot_;
+	base_mode = base_mode_;
 }
 
 void UAS::update_connection_status(bool conn_)
@@ -106,6 +109,19 @@ geometry_msgs::Quaternion UAS::get_attitude_orientation()
 		geometry_msgs::Quaternion q;
 		q.w = 1.0; q.x = q.y = q.z = 0.0;
 		return q;
+	}
+}
+
+geometry_msgs::Vector3 UAS::get_attitude_angular_velocity()
+{
+	lock_guard lock(mutex);
+	if (imu_data)
+		return imu_data->angular_velocity;
+	else {
+		// fallback
+		geometry_msgs::Vector3 v;
+		v.x = v.y = v.z = 0.0;
+		return v;
 	}
 }
 

@@ -50,6 +50,7 @@
     <!-- You can specify that this package is a metapackage here: -->
     <!-- <metapackage/> -->
     <rqt_gui plugin="${prefix}/tabPlugin.xml"/>
+    <rqt_gui plugin="${prefix}/speed_tuning.xml"/>
     <!-- <rqt_gui plugin="${prefix}/positionPlot.xml"/> -->
     <!-- <rqt_gui plugin="${prefix}/choose_mission.xml"/> -->
     <!-- <rqt_gui plugin="${prefix}/choose_jsonable.xml"/> -->

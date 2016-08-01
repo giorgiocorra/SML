@@ -24,17 +24,24 @@ class SimplePIDSpeedController(controller.Controller):
 
 
     def __init__(self,              \
-        natural_frequency = 2.3, \
-        integral_gain     = 0.5, \
-        bound_integral    = 1.0, \
+        natural_frequency_xy = 2.3, \
+        integral_gain_xy     = 0.5, \
+        bound_integral_xy    = 1.0, \
+        natural_frequency_z = 1.0, \
+        integral_gain_z     = 0.5, \
+        bound_integral_z    = 1.0, \
         quad_mass     = rospy.get_param("quadrotor_mass",1.442)
         ):
 
-        self.__proportional_gain = natural_frequency**2
-        self.__derivative_gain   = numpy.sqrt(2)*natural_frequency
-        self.__integral_gain     = integral_gain
-        self.__bound_integral    = bound_integral
+        self.__proportional_gain_xy = natural_frequency_xy**2
+        self.__derivative_gain_xy   = numpy.sqrt(2)*natural_frequency_xy
+        self.__integral_gain_xy     = integral_gain_xy
+        self.__bound_integral_xy   = bound_integral_xy
 
+        self.__proportional_gain_z = natural_frequency_z**2
+        self.__derivative_gain_z   = numpy.sqrt(2)*natural_frequency_z
+        self.__integral_gain_z     = integral_gain_z
+        self.__bound_integral_z   = bound_integral_z
 
         #TODO get from utilities?
         self.MASS = quad_mass
@@ -83,8 +90,8 @@ class SimplePIDSpeedController(controller.Controller):
         # -----------------------------------------------------------------------------#
         # update disturbance estimate
 
-        gains_integral_action    = numpy.array([self.__integral_gain, self.__integral_gain , self.__integral_gain ])
-        max_disturbance_estimate = numpy.array([self.__bound_integral, self.__bound_integral, self.__bound_integral])
+        gains_integral_action    = numpy.array([self.__integral_gain_xy, self.__integral_gain_xy , self.__integral_gain_z ])
+        max_disturbance_estimate = numpy.array([self.__bound_integral_xy, self.__bound_integral_xy, self.__bound_integral_z])
 
         # derivatice of disturbance estimate (ELEMENT WISE PRODUCT)
         
@@ -107,13 +114,16 @@ class SimplePIDSpeedController(controller.Controller):
         u    = numpy.array([0.0,0.0,0.0])
         V_v  = numpy.array([0.0,0.0,0.0])
 
-        kp     = self.__proportional_gain
-        kv     = self.__derivative_gain
+        kp     = self.__proportional_gain_xy
+        kv     = self.__derivative_gain_xy
         u[0]   = -kp*ep[0] - kv*ev[0]
         u[1]   = -kp*ep[1] - kv*ev[1]
-        u[2]   = -kp*ep[2] - kv*ev[2]
         V_v[0] = (kp/2*ep[0] + ev[0])
         V_v[1] = (kp/2*ep[1] + ev[1])
+
+        kp     = self.__proportional_gain_z
+        kv     = self.__derivative_gain_z
+        u[2]   = -kp*ep[2] - kv*ev[2]
         V_v[2] = (kp/2*ep[2] + ev[2])
 
         return u, V_v

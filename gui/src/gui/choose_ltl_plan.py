@@ -63,7 +63,9 @@ class ChooseLTLPlanPlugin(Plugin):
     def __init__(self, context,namespace = None):
 
         # it is either "" or the input given at creation of plugin
-        self.namespace = self._parse_args(context.argv())
+        self.namespace = rospy.get_namespace()[1:]
+
+        self.name_others = rospy.get_param("/" + self.namespace + "name_others", '').rsplit(' ')
 
 
         super(ChooseLTLPlanPlugin, self).__init__(context)
@@ -114,6 +116,7 @@ class ChooseLTLPlanPlugin(Plugin):
         self._widget.start_planner.clicked.connect(self.start_speed_control)
         self._widget.goto_initial_position.clicked.connect(self.goto_initial_position)
         self._widget.slow_take_off.clicked.connect(self.slow_take_off)
+        self._widget.sim_cube_3quads.clicked.connect(self.load_sim_cube_3quads)
 
         self.current_position = numpy.array([0.]*3)
         self.current_yaw = 0.
@@ -132,7 +135,7 @@ class ChooseLTLPlanPlugin(Plugin):
             args = "--namespace "+self.namespace
         if self.firefly:
             args += "firefly"
-        node = roslaunch.core.Node(package, executable,args=args,output="screen")
+        node = roslaunch.core.Node(package, executable,args=args,output="screen", namespace=self.namespace)
 
         launch = roslaunch.scriptapi.ROSLaunch()
         launch.start()
@@ -146,14 +149,14 @@ class ChooseLTLPlanPlugin(Plugin):
         if (collision_av_active):        
             package = 'quad_control'
             executable = 'collision_avoidance_node.py'
-            node = roslaunch.core.Node(package, executable, output = "screen")
+            node = roslaunch.core.Node(package, executable, output = "screen", namespace=self.namespace)
             launcher = roslaunch.scriptapi.ROSLaunch()
             launcher.start()
             launcher.launch(node)
 
         package = 'quad_control'
         executable = 'magnitude_control_node.py'
-        node = roslaunch.core.Node(package, executable, output = "screen")
+        node = roslaunch.core.Node(package, executable, output = "screen", namespace=self.namespace)
         launcher = roslaunch.scriptapi.ROSLaunch()
         launcher.start()
         launcher.launch(node)
@@ -182,11 +185,7 @@ class ChooseLTLPlanPlugin(Plugin):
 
     def load_lmks(self):
         rospy.logwarn("Filename:  " + self.filename)
-        service_name = "/"+ self.namespace+'load_lmks_planner'
-        rospy.wait_for_service(service_name,2.0)
-        load_lmks_srv = rospy.ServiceProxy(service_name, Filename,2.0)
-        load_lmks_srv(self.filename)
-        service_name = "/"+ self.namespace+'load_lmks_magnitude_control'
+        service_name = "/"+ self.namespace+'load_lmks_mission'
         rospy.wait_for_service(service_name,2.0)
         load_lmks_srv = rospy.ServiceProxy(service_name, Filename,2.0)
         load_lmks_srv(self.filename)
@@ -217,18 +216,85 @@ class ChooseLTLPlanPlugin(Plugin):
         rospy.wait_for_service(service_name,2.0)
         stop_srv = rospy.ServiceProxy(service_name, Empty,2.0)
         stop_srv()
+        for ns in self.name_others:
+            service_name = "/"+ ns+'/start_speed_control'
+            rospy.wait_for_service(service_name,2.0)
+            stopsrv = rospy.ServiceProxy(service_name, Empty,2.0)
+            stop_srv()
 
     def start_speed_control(self):
         service_name = "/"+ self.namespace+'start_speed_control'
         rospy.wait_for_service(service_name,2.0)
         start_speed_srv = rospy.ServiceProxy(service_name, Empty,2.0)
         start_speed_srv()
+        for ns in self.name_others:
+            service_name = "/"+ ns+'/start_speed_control'
+            rospy.wait_for_service(service_name,2.0)
+            start_speed_srv = rospy.ServiceProxy(service_name, Empty,2.0)
+            start_speed_srv()
 
     def slow_take_off(self):
         service_name = "/"+ self.namespace+'slow_take_off'
         rospy.wait_for_service(service_name,2.0)
         slow_take_off_srv = rospy.ServiceProxy(service_name, Empty,2.0)
         slow_take_off_srv()
+
+    def load_sim_cube_3quads(self):
+        ####### Load the landmarks #######
+        # Iris 1
+        filename = '/home/giorgiocorra/sml_ws/src/quad_control/experimental_data/landmark_examples/cube_3quads_list_0.txt'
+        service_name = '/Iris1/load_lmks_mission'
+        rospy.wait_for_service(service_name,2.0)
+        load_lmks_srv = rospy.ServiceProxy(service_name, Filename,2.0)
+        load_lmks_srv(filename)
+        # Iris 2
+        filename = '/home/giorgiocorra/sml_ws/src/quad_control/experimental_data/landmark_examples/cube_3quads_list_0.txt'
+        service_name = '/Iris2/load_lmks_mission'
+        rospy.wait_for_service(service_name,2.0)
+        load_lmks_srv = rospy.ServiceProxy(service_name, Filename,2.0)
+        load_lmks_srv(filename)
+        # Iris 3
+        filename = '/home/giorgiocorra/sml_ws/src/quad_control/experimental_data/landmark_examples/cube_3quads_list_0.txt'
+        service_name = '/Iris3/load_lmks_mission'
+        rospy.wait_for_service(service_name,2.0)
+        load_lmks_srv = rospy.ServiceProxy(service_name, Filename,2.0)
+        load_lmks_srv(filename)
+        ####### Place the quads #######
+        # Iris 1
+        initial_position = numpy.array([2.,-1.,1.])
+        initial_v_psi = 1. * PI
+        initial_v_theta = 0. * PI
+        service_name = '/Iris1/PlaceTheCamera'
+        rospy.wait_for_service(service_name,2.0)
+        place_srv = rospy.ServiceProxy(service_name, GotoPose,2.0)
+        p = initial_position.copy()
+        psi = initial_v_psi
+        theta = initial_v_theta
+        place_srv(x=p[0],y=p[1],z=p[2],psi = psi, theta = theta)
+        # Iris 2
+        initial_position = numpy.array([-2.5,1.,1.])
+        initial_v_psi = 0. * PI
+        initial_v_theta = 0. * PI
+        service_name = '/Iris2/PlaceTheCamera'
+        rospy.wait_for_service(service_name,2.0)
+        place_srv = rospy.ServiceProxy(service_name, GotoPose,2.0)
+        p = initial_position.copy()
+        psi = initial_v_psi
+        theta = initial_v_theta
+        place_srv(x=p[0],y=p[1],z=p[2],psi = psi, theta = theta)
+        # Iris 3
+        initial_position = numpy.array([1.,1.5,1.])
+        initial_v_psi = -0.25 * PI
+        initial_v_theta = 0. * PI
+        service_name = '/Iris3/PlaceTheCamera'
+        rospy.wait_for_service(service_name,2.0)
+        place_srv = rospy.ServiceProxy(service_name, GotoPose,2.0)
+        p = initial_position.copy()
+        psi = initial_v_psi
+        theta = initial_v_theta
+        place_srv(x=p[0],y=p[1],z=p[2],psi = psi, theta = theta)
+
+
 
     # def redraw(self,d):
     #     if self.trace and self.ax_trace:
@@ -247,7 +313,6 @@ class ChooseLTLPlanPlugin(Plugin):
 
     def update_trace(self,position):
         self.current_position = numpy.array([position.x,position.y,position.z])
-        self.trace.append(self.current_position)
 
     def get_state_from_rotorS_simulator(self,odometry_rotor_s):
         self.RotorSObject.rotor_s_attitude_for_control(odometry_rotor_s)
@@ -255,8 +320,6 @@ class ChooseLTLPlanPlugin(Plugin):
 
         self.current_position = state_quad[0:3]
         self.current_yaw = state_quad[5]
-        self.trace.append(numpy.array(self.current_position))
-
 
     def _parse_args(self, argv):
         parser = argparse.ArgumentParser(prog='saver', add_help=False)

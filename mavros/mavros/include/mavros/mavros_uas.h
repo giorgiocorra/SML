@@ -2,6 +2,7 @@
  * @brief MAVROS Plugin context
  * @file mavros_uas.h
  * @author Vladimir Ermakov <vooon341@gmail.com>
+ * @author Eddy Scott <scott.edward@aurora.aero>
  *
  * @addtogroup nodelib
  * @{
@@ -130,7 +131,7 @@ public:
 	/**
 	 * Update autopilot type on every HEARTBEAT
 	 */
-	void update_heartbeat(uint8_t type_, uint8_t autopilot_);
+	void update_heartbeat(uint8_t type_, uint8_t autopilot_, uint8_t base_mode_);
 
 	/**
 	 * Update autopilot connection status (every HEARTBEAT/conn_timeout)
@@ -151,6 +152,24 @@ public:
 	inline enum MAV_AUTOPILOT get_autopilot() {
 		uint8_t autopilot_ = autopilot;
 		return static_cast<enum MAV_AUTOPILOT>(autopilot_);
+	}
+
+	/**
+	 * @brief Returns arming status
+	 *
+	 * @note There may be race condition between SET_MODE and HEARTBEAT.
+	 */
+	inline bool get_armed() {
+		uint8_t base_mode_ = base_mode;
+		return base_mode_ & MAV_MODE_FLAG_SAFETY_ARMED;
+	}
+
+	/**
+	 * @brief Returns HIL status
+	 */
+	inline bool get_hil_state() {
+		uint8_t base_mode_ = base_mode;
+		return base_mode_ & MAV_MODE_FLAG_HIL_ENABLED;
 	}
 
 	/* -*- FCU target id pair -*- */
@@ -188,6 +207,12 @@ public:
 	 * @return orientation quaternion [ENU]
 	 */
 	geometry_msgs::Quaternion get_attitude_orientation();
+
+	/**
+	 * @brief Get angular velocity from IMU data
+	 * @return vector3
+	 */
+	geometry_msgs::Vector3 get_attitude_angular_velocity();
 
 
 	/* -*- GPS data -*- */
@@ -392,43 +417,196 @@ public:
 	}
 
 	/**
-	 * @brief Transform frame between ROS and FCU. (Vector3d)
-	 *
-	 * General function. Please use specialized enu-ned and ned-enu variants.
+	 * @brief Orientation transform options when applying rotations to data
 	 */
-	static Eigen::Vector3d transform_frame(const Eigen::Vector3d &vec);
+	enum class STATIC_TRANSFORM : uint8_t {
+		NED_TO_ENU,	//!< will change orinetation from being expressed WRT NED frame to WRT ENU frame
+		ENU_TO_NED,	//!< change from expressed WRT ENU frame to WRT NED frame
+		AIRCRAFT_TO_BASELINK,	//!< change from expressed WRT aircraft frame to WRT to baselink frame
+		BASELINK_TO_AIRCRAFT	//!< change from expressed WRT baselnk to WRT aircraft
+	};
 
 	/**
-	 * @brief Transform frame between ROS and FCU. (Quaterniond)
+	 * @brief Transform representation of attitude from 1 frame to another
+	 * (e.g. transfrom attitude from representing  from base_link -> NED
+	 *               to representing base_link -> ENU)
 	 *
 	 * General function. Please use specialized enu-ned and ned-enu variants.
 	 */
-	static Eigen::Quaterniond transform_frame(const Eigen::Quaterniond &q);
+	static Eigen::Quaterniond transform_orientation(const Eigen::Quaterniond &q, const STATIC_TRANSFORM transform);
 
 	/**
-	 * @brief Transform frame between ROS and FCU. (Covariance3d)
+	 * @brief Transform data experessed in one frame to another frame.
 	 *
 	 * General function. Please use specialized enu-ned and ned-enu variants.
 	 */
-	static Covariance3d transform_frame(const Covariance3d &cov);
+	static Eigen::Vector3d transform_frame(const Eigen::Vector3d &vec, const Eigen::Quaterniond &q);
+
+	/**
+	 * @brief Transform convariance expressed in one frame to another
+	 *
+	 * General function. Please use specialized enu-ned and ned-enu variants.
+	 */
+	static Covariance3d transform_frame(const Covariance3d &cov, const Eigen::Quaterniond &q);
 
 	// XXX TODO implement that function
-	static Covariance6d transform_frame(const Covariance6d &cov);
+	static Covariance6d transform_frame(const Covariance6d &cov, const Eigen::Quaterniond &q);
 
 	/**
-	 * @brief Transform from FCU to ROS frame.
+	 * @brief Transform data experessed in one frame to another frame.
+	 *
+	 * General function. Please use specialized enu-ned and ned-enu variants.
+	 */
+	static Eigen::Vector3d transform_static_frame(const Eigen::Vector3d &vec, const STATIC_TRANSFORM transform);
+
+	/**
+	 * @brief Transform convariance expressed in one frame to another
+	 *
+	 * General function. Please use specialized enu-ned and ned-enu variants.
+	 */
+	static Covariance3d transform_static_frame(const Covariance3d &cov, const STATIC_TRANSFORM transform);
+
+	// XXX TODO implement that function
+	static Covariance6d transform_static_frame(const Covariance6d &cov, const STATIC_TRANSFORM transform);
+
+	/**
+	 * @brief Transform from attitude represented WRT NED frame to attitude
+	 *		  represented WRT ENU frame
 	 */
 	template<class T>
-	static inline T transform_frame_ned_enu(const T &in) {
-		return transform_frame(in);
+	static inline T transform_orientation_ned_enu(const T &in) {
+		return transform_orientation(in, STATIC_TRANSFORM::NED_TO_ENU);
 	}
 
 	/**
-	 * @brief Transform from ROS to FCU frame.
+	 * @brief Transform from attitude represented WRT ENU frame to
+	 *		  attitude represented WRT NED frame
+	 */
+	template<class T>
+	static inline T transform_orientation_enu_ned(const T &in) {
+		return transform_orientation(in, STATIC_TRANSFORM::ENU_TO_NED);
+	}
+
+	/**
+	 * @brief Transform from attitude represented WRT aircraft frame to
+	 *		  attitude represented WRT base_link frame
+	 */
+	template<class T>
+	static inline T transform_orientation_aircraft_baselink(const T &in) {
+		return transform_orientation(in, STATIC_TRANSFORM::AIRCRAFT_TO_BASELINK);
+	}
+
+	/**
+	 * @brief Transform from attitude represented WRT baselink frame to
+	 *		  attitude represented WRT body frame
+	 */
+	template<class T>
+	static inline T transform_orientation_baselink_aircraft(const T &in) {
+		return transform_orientation(in, STATIC_TRANSFORM::BASELINK_TO_AIRCRAFT);
+	}
+
+	/**
+	 * @brief Transform data expressed in NED to ENU frame.
+	 *
+	 */
+	template<class T>
+	static inline T transform_frame_ned_enu(const T &in) {
+		return transform_static_frame(in, STATIC_TRANSFORM::NED_TO_ENU);
+	}
+
+	/**
+	 * @brief Transform data expressed in ENU to NED frame.
+	 *
 	 */
 	template<class T>
 	static inline T transform_frame_enu_ned(const T &in) {
-		return transform_frame(in);
+		return transform_static_frame(in, STATIC_TRANSFORM::ENU_TO_NED);
+	}
+
+	/**
+	 * @brief Transform data expressed in Aircraft frame to Baselink frame.
+	 *
+	 */
+	template<class T>
+	static inline T transform_frame_aircraft_baselink(const T &in) {
+		return transform_static_frame(in, STATIC_TRANSFORM::AIRCRAFT_TO_BASELINK);
+	}
+
+	/**
+	 * @brief Transform data expressed in Baselink frame to Aircraft frame.
+	 *
+	 */
+	template<class T>
+	static inline T transform_frame_baselink_aircraft(const T &in) {
+		return transform_static_frame(in, STATIC_TRANSFORM::BASELINK_TO_AIRCRAFT);
+	}
+
+	/**
+	 * @brief Transform data expressed in aircraft frame to NED frame.
+	 * Assumes quaternion represents rotation from aircraft frame to NED frame.
+	 */
+	template<class T>
+	static inline T transform_frame_aircraft_ned(const T &in,const Eigen::Quaterniond &q) {
+		return transform_frame(in, q);
+	}
+
+	/**
+	 * @brief Transform data expressed in NED to aircraft frame.
+	 * Assumes quaternion represents rotation from NED to aircraft frame.
+	 */
+	template<class T>
+	static inline T transform_frame_ned_aircraft(const T &in,const Eigen::Quaterniond &q) {
+		return transform_frame(in, q);
+	}
+
+	/**
+	 * @brief Transform data expressed in aircraft frame to ENU frame.
+	 * Assumes quaternion represents rotation from aircraft frame to ENU frame.
+	 */
+	template<class T>
+	static inline T transform_frame_aircraft_enu(const T &in,const Eigen::Quaterniond &q) {
+		return transform_frame(in, q);
+	}
+
+	/**
+	 * @brief Transform data expressed in ENU to aircraft frame.
+	 * Assumes quaternion represents rotation from ENU to aircraft frame.
+	 */
+	template<class T>
+	static inline T transform_frame_enu_aircraft(const T &in,const Eigen::Quaterniond &q) {
+		return transform_frame(in, q);
+	}
+
+	/**
+	 * @brief Transform data expressed in ENU to base_link frame.
+	 * Assumes quaternion represents rotation from ENU to base_link frame.
+	 */
+	template<class T>
+	static inline T transform_frame_enu_baselink(const T &in,const Eigen::Quaterniond &q) {
+		return transform_frame(in, q);
+	}
+
+	/**
+	 * @brief Transform data expressed in baselink to ENU frame.
+	 * Assumes quaternion represents rotation from basel_link to ENU frame.
+	 */
+	template<class T>
+	static inline T transform_frame_baselink_enu(const T &in,const Eigen::Quaterniond &q) {
+		return transform_frame(in, q);
+	}
+
+	/**
+	 * @brief Transform heading from ROS to FCU frame.
+	 */
+	static inline double transform_frame_yaw_enu_ned(double yaw) {
+		return transform_frame_yaw(yaw);
+	}
+
+	/**
+	 * @brief Transform heading from FCU to ROS frame.
+	 */
+	static inline double transform_frame_yaw_ned_enu(double yaw) {
+		return transform_frame_yaw(yaw);
 	}
 
 private:
@@ -436,6 +614,7 @@ private:
 
 	std::atomic<uint8_t> type;
 	std::atomic<uint8_t> autopilot;
+	std::atomic<uint8_t> base_mode;
 
 	uint8_t target_system;
 	uint8_t target_component;
@@ -454,5 +633,9 @@ private:
 
 	std::atomic<bool> fcu_caps_known;
 	std::atomic<uint64_t> fcu_capabilities;
+
+	static inline double transform_frame_yaw(double yaw) {
+		return -yaw;
+	}
 };
 };	// namespace mavros

@@ -2,6 +2,76 @@
 Changelog for package mavros_extras
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.17.3 (2016-05-20)
+-------------------
+
+0.17.2 (2016-04-29)
+-------------------
+
+0.17.1 (2016-03-28)
+-------------------
+* ran uncrustify
+* fixed typos
+* use CUBE_LIST for faster rendering
+* limit track size
+* use local variable
+* fixed indentation
+* added rc modes
+* moved rc to rc_override_control()
+* replaced tabulations with spaces (4)
+* introducing RC modes
+* fixed
+* quality added
+* added visualization for local setpoints
+* Contributors: Joey Gong, francois
+
+0.17.0 (2016-02-09)
+-------------------
+* rebased with master
+* ran uncrustify
+* removed duplicate include
+* use MarkerArray for vehicle model
+* Updated frame transformations and added odom publisher to local position plugin
+* Contributors: Eddy, francois
+
+0.16.6 (2016-02-04)
+-------------------
+* extras: uncrustify
+* added tf
+* comments
+* configurable vehicle model
+* Contributors: Vladimir Ermakov, francois
+
+0.16.5 (2016-01-11)
+-------------------
+
+0.16.4 (2015-12-14)
+-------------------
+
+0.16.3 (2015-11-19)
+-------------------
+
+0.16.2 (2015-11-17)
+-------------------
+
+0.16.1 (2015-11-13)
+-------------------
+
+0.16.0 (2015-11-09)
+-------------------
+* gcs_bridge `#394 <https://github.com/mavlink/mavros/issues/394>`_: enable both UDPROS and TCPROS transports
+* extras fix `#392 <https://github.com/mavlink/mavros/issues/392>`_: add additional subscription for PoseWithCovarianceStamped
+* Contributors: Vladimir Ermakov
+
+0.15.0 (2015-09-17)
+-------------------
+* extras `#387 <https://github.com/mavlink/mavros/issues/387>`_: fix header stamp in joint_states
+* extras fix `#387 <https://github.com/mavlink/mavros/issues/387>`_: SSP node done.
+* extras `#387 <https://github.com/mavlink/mavros/issues/387>`_: subscriber works, node almost done
+* extras `#387 <https://github.com/mavlink/mavros/issues/387>`_: load URDF
+* extras `#387 <https://github.com/mavlink/mavros/issues/387>`_: initial import of servo_status_publisher
+* Contributors: Vladimir Ermakov
+
 0.14.2 (2015-08-20)
 -------------------
 * extras: fix catkin lint warnings

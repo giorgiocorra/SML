@@ -15,13 +15,15 @@ import numpy as np
 norm = np.linalg.norm
 import utilities.coverage_giorgio as cov
 
+import json
+
 from quad_control.msg import quad_speed_cmd_3d, camera_pose
-from quad_control.srv import Filename
+from quad_control.srv import LandmarksTrade
 
 class MagnitudeControlNode():
 	def __init__(self,namespace=""):
 
-		self.namespace = namespace
+		self.namespace = rospy.get_namespace()[1:]
 
 		D_OPT = get("D_OPT",0.3)
 		v_lim = get("v_lim",0.3)
@@ -42,7 +44,7 @@ class MagnitudeControlNode():
 		self.cam = cov.Camera()
 		self.Q = cov.Landmark_list()
 
-		rospy.Service("/"+self.namespace+'load_lmks_magnitude_control', Filename, self.load_lmks)
+		rospy.Service("/"+self.namespace+'load_lmks_magnitude_control', LandmarksTrade, self.load_lmks)
 
 		max_speed_topic = "/" + self.namespace + "quad_max_speed_cmd"
 		magnitude_speed_topic = "/" + self.namespace + "quad_speed_magnitude"
@@ -95,7 +97,8 @@ class MagnitudeControlNode():
 		self.cam.new_pose(data)
 
 	def load_lmks(self,data):
-		self.Q = cov.read_lmks_from_file(data.filename)
+		self.Q = cov.Landmark_list()
+		self.Q.from_lists(q = data.q, u = data.u)
 		rospy.logwarn("Landmarks loaded in magnitude control: ")
 		rospy.logwarn(str(self.Q))
 		return {}

@@ -282,7 +282,7 @@ class QuadController():
 
     # return list of bodies detected by mocap or numbers 1 to 99 if not available
     def handle_available_bodies(self, dummy):
-        pass
+        # pass
         # if self.flagMOCAP_On:
         #     try: # sometimes mocap causes unpredictable errors
         #         bodies = self.Qs.find_available_bodies(False)
@@ -291,7 +291,7 @@ class QuadController():
         #     except:
         #         pass
 
-        # return {"bodies": range(0,100)}
+        return {"bodies": range(0,100)}
 
 
     def PublishToGui(self):

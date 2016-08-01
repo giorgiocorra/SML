@@ -45,7 +45,11 @@ class DoubleIntegratorSimulator(simulator.Simulator):
             initial_state,
             initial_control
             )
-            
+        
+        self.namespace = rospy.get_namespace()[1:]
+
+        rospy.logerr('Simulator ' + self.namespace + ' started')
+
         self.mass = mass
         self.neutral_throttle = neutral_throttle
         self.acro_rpp = acro_rpp

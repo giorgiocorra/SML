@@ -31,7 +31,7 @@ class tabbedGUIPlugin(Plugin):
     def __init__(self, context,namespace = None):
 
         # it is either "" or the input given at creation of plugin
-        self.namespace = self._parse_args(context.argv())
+        self.namespace = rospy.get_namespace()[1:]
         # warn message for letting user know namespace for the gui
         rospy.logwarn("Gui within namespace: " + self.namespace)
 

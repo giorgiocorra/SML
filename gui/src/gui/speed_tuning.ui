@@ -104,6 +104,13 @@
             </property>
            </widget>
           </item>
+          <item row="0" column="0">
+           <widget class="QPushButton" name="b_speed_cont">
+            <property name="text">
+             <string>Switch to speed controller</string>
+            </property>
+           </widget>
+          </item>
          </layout>
         </widget>
        </item>
@@ -122,6 +129,9 @@
           </item>
           <item row="0" column="1">
            <widget class="QDoubleSpinBox" name="z_value">
+            <property name="singleStep">
+             <double>0.500000000000000</double>
+            </property>
             <property name="value">
              <double>0.500000000000000</double>
             </property>
