@@ -3,7 +3,7 @@ import rospy
 import numpy as np
 norm = np.linalg.norm
 
-from math import exp,tan,cos,pi
+from math import exp,tan,sin,cos,pi
 
 #from quaternion_utilities import q_mult, qv_mult
 
@@ -67,6 +67,9 @@ class Camera:
 
 	def change_position(self,p_new):
 		self.p = p_new
+
+	def change_lat_long(self,lat_new,long_new):
+		self.v = unit_vec_from_lat_long(long_new,lat_new)
 
 # Test
 # cam = Camera([-2.,1.,0.75],[1.,0.,0.])
@@ -161,6 +164,13 @@ class Landmark_list:
 				vis_set.append(lm)
 		return vis_set
 
+	def not_visible_set(self, cam, D_OPT):
+		not_vis_set = Landmark_list([])
+		for lm in self.lst:
+			if not(lm.is_visible(cam, D_OPT)):
+				not_vis_set.append(lm)
+		return not_vis_set
+
 	def list(self):
 		return self.lst
 
@@ -177,14 +187,15 @@ class Landmark_list:
 	def from_lists(self,q,u):
 		l_q = int(len(q)/3)
 		l_u = int(len(u)/2)
-		if not(l_q==l_u):
+		self.lst = []
+		if not(l_q == l_u):
 			print "Error: lists of different lengths"
 		else:
 			for i in range(l_q):
 				q_0 = q[3*i:3*(i+1)]
 				u_0 = unit_vec_from_lat_long(u[2*i],u[2*i+1])
 				lmk = Landmark(q_0,u_0)
-				self.append(lmk)
+				self.lst.append(lmk)
 
 # Test
 # from utilities.utility_functions import unit_vec
@@ -207,7 +218,7 @@ class Landmark_list:
 # q,u = lmk_list.to_lists()
 # print q
 # print u
-# new_lmk_lst = Landmark_list()
+# new_lmk_lst = Landmark_list([])
 # new_lmk_lst.from_lists(q,u)
 # print str(lmk_list)
 # print str(new_lmk_lst)
@@ -297,12 +308,15 @@ def read_lmks_from_file(filename):
 	file_object.close()
 	return lmks
 
-def backtracking(cam, Q, p_dot_max, p_dot_star, D_OPT, v_lim=0.3, alpha=1, beta=0.5, tau=0.9, t_s=0.1, v_min=1e-2):
+def bls_velocity(cam, Q, p_dot_max, p_dot_star, D_OPT, v_lim=0.3, alpha=1, beta=0.5, tau=0.9, t_s=0.1, v_min=1e-2):
+	if not(p_dot_max.any()) or not(p_dot_star.any()):
+		return np.zeros(3)
+	# alpha = alpha * p_dot_max.dot(1/norm(p_dot_max)).dot(p_dot_star)
 	f_now = Q.vision(cam,D_OPT)
 	p = cam.position()
 	delta_p = p_dot_star.dot(t_s*v_lim)
 	p_next = p + delta_p.dot(alpha)
-	cam_next = Camera(cam.position(), cam. orientation_as_vector())
+	cam_next = Camera(p_next, cam.orientation_as_vector())
 	f_next = Q.vision(cam_next,D_OPT)
 	scal = np.asscalar(p_dot_max.dot(delta_p))
 	while (f_next < f_now + beta * alpha * scal):
@@ -328,7 +342,49 @@ def backtracking(cam, Q, p_dot_max, p_dot_star, D_OPT, v_lim=0.3, alpha=1, beta=
 # cam = Camera(p,v)
 # p_dot_max = linear_velocity(cam, Q, D_OPT)
 # p_dot_star = np.array([0.9196, -0.1812, -0.3486])
-# print backtracking(cam,Q, p_dot_max, p_dot_star,D_OPT)
+# print bls_velocity(cam,Q, p_dot_max, p_dot_star,D_OPT)
+
+def bls_omega(cam, Q, omega_max, D_OPT, omega_lim=0.79, alpha=1, beta=0.5, tau=0.9, t_s=0.1, omega_min=0.02):
+	if not(omega_max.any()):
+		return np.zeros(3)
+	omega_new = omega_max.dot(omega_lim/norm(omega_max))
+	longit, lat = cam.orientation_as_lat_long()
+	long_rate_new = omega_new[2]
+	lat_rate_new = sin(lat)*omega_new[0] - cos(lat)*omega_new[1] 
+	longit_next = longit + long_rate_new*t_s
+	lat_next = lat + lat_rate_new*t_s
+	cam_next = Camera(cam.position(), cam.orientation_as_vector())
+	cam_next.change_lat_long(lat_next,longit_next)
+	f_now = Q.vision(cam,D_OPT)
+	f_next = Q.vision(cam_next,D_OPT)
+	scal = np.asscalar(omega_max.dot(omega_new))
+	while (f_next < f_now + beta * scal * t_s):
+		omega_new = omega_new.dot(tau) 
+		long_rate_new = omega_new[2]
+		lat_rate_new = sin(lat)*omega_new[0] - cos(lat)*omega_new[1] 
+		longit_next = longit + long_rate_new*t_s
+		lat_next = lat + lat_rate_new*t_s
+		cam_next.change_lat_long(lat_next,longit_next)
+		f_next = Q.vision(cam_next,D_OPT)
+		scal = np.asscalar(omega_max.dot(omega_new))
+		if (norm(omega_new) < omega_min):
+			omega_new  = np.zeros(3)
+			break
+	return omega_new
+
+# Test
+# from utility_functions import unit_vec
+# from math import pi
+# D_OPT = 3
+# lmk_0 = Landmark([-3.,-1.,0.],unit_vec(pi/2, pi/6))
+# lmk_1 = Landmark([-2.,-1.,0.],unit_vec(pi/3, -pi/4))
+# lmk_2 = Landmark([-1.,-1.,0.],unit_vec(pi/3, 0))
+# Q = Landmark_list([lmk_0, lmk_1, lmk_2])
+# p = np.array([2.2875, 0.0259, 0.9559])
+# v =  unit_vec_from_lat_long(-2.8863, -0.2385)
+# cam = Camera(p,v)
+# omega_max = angular_velocity(cam, Q, D_OPT)
+# print bls_omega(cam,Q, omega_max, D_OPT)
 
 def trade_function(cam_i,Q_i,cam_j,Q_j,D_OPT):
 	result = False

@@ -1,8 +1,43 @@
 <launch>
 
+    <!-- Planner parameters -->
+    <param name="D_OPT" value="2" type="double"/> 
+    <param name="planner_frequency" value="1e1" type="double"/> 
+    <!-- Collision avoidance parameters -->
+    <param name="collision_avoidance_active" value="True" type="bool"/>
+    <param name="smooth" value="True" type="bool"/>
+    <!-- Real arena -->
+    <param name="x_min" value="-1.5" type="double"/>
+    <param name="y_min" value="-2.2" type="double"/>
+    <param name="z_min" value="0.3" type="double"/>
+    <param name="x_max" value="2" type="double"/>
+    <param name="y_max" value="1.7" type="double"/>
+    <param name="z_max" value="3" type="double"/>
+    <param name="delta_walls_x" value="0" type="double"/>
+    <param name="delta_walls_y" value="0" type="double"/>
+    <param name="delta_walls_z" value="0" type="double"/>
+    <param name="delta_others" value="1.5" type="double"/>
+    <param name="delta_worry" value="0.5" type="double"/>
+    <!-- Magnitude control parameters -->
+    <param name="magnitude_control_type" value="BLS" type="String"/>
+    <param name="v_lim" value="0.3" type="double"/>
+    <param name="v_min" value="5e-2" type="double"/>
+    <param name="omega_lim" value="0.79" type="double"/>
+    <param name="omega_min" value="0.1" type="double"/>
+    <param name="alpha" value="1" type="double"/>
+    <param name="beta" value="0.5" type="double"/>
+    <param name="tau" value="0.9" type="double"/>
+
     <group ns="Iris1">
         <!-- Controller Node -->
         <node pkg="quad_control" name="controller_Iris1" type="cycle_quad_control_mission.py"/>
+
+        <!-- Planner Node -->
+        <node pkg="quad_control" name="planner_node" type="planner_node.py"/>
+        <!-- Collision avoidance Node -->
+        <node pkg="quad_control" name="collision_avoidance_node" type="collision_avoidance_node.py"/>
+        <!-- Magnitude control Node -->
+        <node pkg="quad_control" name="magnitude_control_node" type="magnitude_control_node.py"/>
 
         <!-- Controller parameters -->
         <param name="gravity_ctr" value="9.81"/>
@@ -16,31 +51,6 @@
         <param name="kp" value="1.4"/> 
         <param name="sigma_p" value="0.5"/> 
         <param name="sigma_v" value="0.5"/> 
-
-        <!-- Planner parameters -->
-        <param name="D_OPT" value="3" type="double"/> 
-        <param name="planner_frequency" value="1e1" type="double"/> 
-        <!-- Collision avoidance parameters -->
-        <param name="collision_avoidance_active" value="True" type="bool"/>
-        <param name="smooth" value="True" type="bool"/>
-        <param name="x_min" value="-3" type="double"/>
-        <param name="y_min" value="-3" type="double"/>
-        <param name="z_min" value="0" type="double"/>
-        <param name="x_max" value="3" type="double"/>
-        <param name="y_max" value="3" type="double"/>
-        <param name="z_max" value="4" type="double"/>
-        <param name="delta_walls_x" value="0.5" type="double"/>
-        <param name="delta_walls_y" value="0.5" type="double"/>
-        <param name="delta_walls_z" value="0.3" type="double"/>
-        <param name="delta_others" value="1.5" type="double"/>
-        <param name="delta_worry" value="0.5" type="double"/>
-        <!-- Magnitude control parameters -->
-        <param name="magnitude_control_type" value="BLS" type="String"/>
-        <param name="v_lim" value="0.3" type="double"/>
-        <param name="alpha" value="1" type="double"/>
-        <param name="beta" value="0.5" type="double"/>
-        <param name="tau" value="0.9" type="double"/>
-        <param name="v_min" value="1e-5" type="double"/>
     
         <!-- Multiagent mission parameters -->
         <param name="name_others" value="Iris2 Iris3" type="str"/>
@@ -70,6 +80,13 @@
         <!-- Controller Node -->
         <node pkg="quad_control" name="controller_Iris2" type="cycle_quad_control_mission.py"/>
 
+        <!-- Planner Node -->
+        <node pkg="quad_control" name="planner_node" type="planner_node.py"/>
+        <!-- Collision avoidance Node -->
+        <node pkg="quad_control" name="collision_avoidance_node" type="collision_avoidance_node.py"/>
+        <!-- Magnitude control Node -->
+        <node pkg="quad_control" name="magnitude_control_node" type="magnitude_control_node.py"/>
+
         <!-- Controller parameters -->
         <param name="gravity_ctr" value="9.81"/>
         <param name="mass_quad_ctr" value="1.442"/>
@@ -82,31 +99,6 @@
         <param name="kp" value="1.4"/> 
         <param name="sigma_p" value="0.5"/> 
         <param name="sigma_v" value="0.5"/> 
-
-        <!-- Planner parameters -->
-        <param name="D_OPT" value="3" type="double"/> 
-        <param name="planner_frequency" value="1e1" type="double"/> 
-        <!-- Collision avoidance parameters -->
-        <param name="collision_avoidance_active" value="True" type="bool"/>
-        <param name="smooth" value="True" type="bool"/>
-        <param name="x_min" value="-3" type="double"/>
-        <param name="y_min" value="-3" type="double"/>
-        <param name="z_min" value="0" type="double"/>
-        <param name="x_max" value="3" type="double"/>
-        <param name="y_max" value="3" type="double"/>
-        <param name="z_max" value="4" type="double"/>
-        <param name="delta_walls_x" value="0.5" type="double"/>
-        <param name="delta_walls_y" value="0.5" type="double"/>
-        <param name="delta_walls_z" value="0.3" type="double"/>
-        <param name="delta_others" value="1.5" type="double"/>
-        <param name="delta_worry" value="0.5" type="double"/>
-        <!-- Magnitude control parameters -->
-        <param name="magnitude_control_type" value="BLS" type="String"/>
-        <param name="v_lim" value="0.3" type="double"/>
-        <param name="alpha" value="1" type="double"/>
-        <param name="beta" value="0.5" type="double"/>
-        <param name="tau" value="0.9" type="double"/>
-        <param name="v_min" value="1e-5" type="double"/>
     
         <!-- Multiagent mission parameters -->
         <param name="name_others" value="Iris1 Iris3" type="str"/>
@@ -136,6 +128,13 @@
         <!-- Controller Node -->
         <node pkg="quad_control" name="controller_Iris3" type="cycle_quad_control_mission.py"/>
 
+        <!-- Planner Node -->
+        <node pkg="quad_control" name="planner_node" type="planner_node.py"/>
+        <!-- Collision avoidance Node -->
+        <node pkg="quad_control" name="collision_avoidance_node" type="collision_avoidance_node.py"/>
+        <!-- Magnitude control Node -->
+        <node pkg="quad_control" name="magnitude_control_node" type="magnitude_control_node.py"/>
+        
         <!-- Controller parameters -->
         <param name="gravity_ctr" value="9.81"/>
         <param name="mass_quad_ctr" value="1.442"/>
@@ -148,31 +147,6 @@
         <param name="kp" value="1.4"/> 
         <param name="sigma_p" value="0.5"/> 
         <param name="sigma_v" value="0.5"/> 
-
-        <!-- Planner parameters -->
-        <param name="D_OPT" value="3" type="double"/> 
-        <param name="planner_frequency" value="1e1" type="double"/> 
-        <!-- Collision avoidance parameters -->
-        <param name="collision_avoidance_active" value="True" type="bool"/>
-        <param name="smooth" value="True" type="bool"/>
-        <param name="x_min" value="-3" type="double"/>
-        <param name="y_min" value="-3" type="double"/>
-        <param name="z_min" value="0" type="double"/>
-        <param name="x_max" value="3" type="double"/>
-        <param name="y_max" value="3" type="double"/>
-        <param name="z_max" value="4" type="double"/>
-        <param name="delta_walls_x" value="0.5" type="double"/>
-        <param name="delta_walls_y" value="0.5" type="double"/>
-        <param name="delta_walls_z" value="0.3" type="double"/>
-        <param name="delta_others" value="1.5" type="double"/>
-        <param name="delta_worry" value="0.5" type="double"/>
-        <!-- Magnitude control parameters -->
-        <param name="magnitude_control_type" value="BLS" type="String"/>
-        <param name="v_lim" value="0.3" type="double"/>
-        <param name="alpha" value="1" type="double"/>
-        <param name="beta" value="0.5" type="double"/>
-        <param name="tau" value="0.9" type="double"/>
-        <param name="v_min" value="1e-5" type="double"/>
     
         <!-- Multiagent mission parameters -->
         <param name="name_others" value="Iris1 Iris2" type="str"/>
@@ -202,10 +176,16 @@
     <node pkg="quad_control" name="trade_node" type="trade_node.py"/>
     
     <param name="D_OPT" value="3" type="double"/> 
-    <param name="trade_allowed" value="False" type="bool"/>
+    <param name="trade_allowed" value="True" type="bool"/>
     <param name="name_agents" value="Iris1 Iris2 Iris3" type="str"/>
 
     <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d /home/pedrootao/SML_CODE/src/quad_control/launch/rviz_config.rviz"/> -->
     <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find quad_control)/launch/rviz_config.rviz"/> -->
+
+    <node pkg="quad_control" name="vision_plot_node" type="vision_plot.py"/>
+
+    <node pkg="quad_control" name="projector_node" type="projector_node.py"/>
+
+    <param name="radius_circle_proj" value="0.5" type="double"/>
 
 </launch>

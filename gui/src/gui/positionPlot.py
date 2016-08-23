@@ -195,7 +195,7 @@ class positionPlotPlugin(Plugin):
         velplotwidget.getPlotItem().setLabel('bottom','time','s')
 
         # labels for window with angles
-        Anglesplotwidget.getPlotItem().setLabel('left','Angles','Degrees')
+        Anglesplotwidget.getPlotItem().setLabel('left','Angles','Rad')
         Anglesplotwidget.getPlotItem().setLabel('bottom','time','s')
 
         # labels for window with channels

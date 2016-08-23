@@ -12,6 +12,7 @@ import rospy
 get = rospy.get_param
 
 import numpy as np
+norm = np.linalg.norm
 import utilities.collision_avoidance_utilities as coll_av
 
 from quad_control.msg import quad_speed_cmd_3d, camera_pose
@@ -21,21 +22,21 @@ class CollisionAvoidanceNode():
 
 		self.namespace = rospy.get_namespace()[1:]
 
-		smooth = get("/" + self.namespace + "smooth",True)
+		smooth = get("/smooth",True)
 
-		freq = get("/" + self.namespace + "planner_frequency",1e1)
+		freq = get("/planner_frequency",1e1)
 
-		x_min = get("/" + self.namespace + "x_min",-3.)
-		y_min = get("/" + self.namespace + "y_min",-3.)
-		z_min = get("/" + self.namespace + "z_min",0.)
-		x_max = get("/" + self.namespace + "x_max",3.)
-		y_max = get("/" + self.namespace + "y_max",3.)
-		z_max = get("/" + self.namespace + "z_max",4.)
-		delta_walls_x = get("/" + self.namespace + "delta_walls_x", 0.5)
-		delta_walls_y = get("/" + self.namespace + "delta_walls_y", 0.5)
-		delta_walls_z = get("/" + self.namespace + "delta_walls_z", 0.3)
-		DELTA_OTHERS = get("/" + self.namespace + "delta_others", 2.)
-		DELTA_WORRY = get("/" + self.namespace + "delta_worry", 0.5)
+		x_min = get("/x_min",-3.)
+		y_min = get("/y_min",-3.)
+		z_min = get("/z_min",0.)
+		x_max = get("/x_max",3.)
+		y_max = get("/y_max",3.)
+		z_max = get("/z_max",4.)
+		delta_walls_x = get("/delta_walls_x", 0.5)
+		delta_walls_y = get("/delta_walls_y", 0.5)
+		delta_walls_z = get("/delta_walls_z", 0.3)
+		DELTA_OTHERS = get("/delta_others", 2.)
+		DELTA_WORRY = get("/delta_worry", 0.5)
 		name_others = get("/" + self.namespace + "name_others", '')
 
 		if (name_others == ''):
@@ -86,7 +87,10 @@ class CollisionAvoidanceNode():
 			else:
 				W = coll_av.wall_directions(self.p, self.p_others, P_MIN, P_MAX, DELTA_WALLS, DELTA_OTHERS)
 				self.p_dot_star = coll_av.collision_avoidance_vel(self.p_dot_max, W)
-			self.omega_star = self.omega_max
+			if not(self.omega_max.any()):
+				self.omega_star = self.omega_max
+			else:
+				self.omega_star = self.omega_max.dot(1/norm(self.omega_max))
 			msg = quad_speed_cmd_3d()
 			msg.vx = self.p_dot_star[0]
 			msg.vy = self.p_dot_star[1]
@@ -111,7 +115,8 @@ class CollisionAvoidanceNode():
 
 """PROBLEMA: serve subscribe anche alla posizione del quad (e degli altri), ma deve essere sincronizzata con la velocita"""
 
-try:
-	CollisionAvoidanceNode()
-except rospy.ROSInterruptException:
-	pass
+if (rospy.get_param("/collision_avoidance_active", True)):
+	try:
+		CollisionAvoidanceNode()
+	except rospy.ROSInterruptException:
+		pass

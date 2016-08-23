@@ -27,7 +27,7 @@ class ChooseJsonablePlugin(Plugin):
     def __init__(self, context,namespace = None, name_tab = "", dictionary_of_options = {}, service_name = "", ServiceClass = None):
 
         # it is either "" or the input given at creation of plugin
-        self.namespace = rospy.get_namespace()[1:]
+        self.namespace = rospy.get_namespace()
 
         # DO NOT COPY DICTIONARY
         self.dictionary_of_options = dictionary_of_options

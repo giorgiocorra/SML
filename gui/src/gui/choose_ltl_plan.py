@@ -117,6 +117,11 @@ class ChooseLTLPlanPlugin(Plugin):
         self._widget.goto_initial_position.clicked.connect(self.goto_initial_position)
         self._widget.slow_take_off.clicked.connect(self.slow_take_off)
         self._widget.sim_cube_3quads.clicked.connect(self.load_sim_cube_3quads)
+        self._widget.sim_1quad_sim.clicked.connect(self.load_sim_1quad_sim)
+        self._widget.sim_1quad_real.clicked.connect(self.load_sim_1quad_real)
+
+        self._widget.savedata_3quads_check.stateChanged.connect(self.save_3quads)
+        self._widget.savedata_1quad_sim_check.stateChanged.connect(self.save_1quad_sim)
 
         self.current_position = numpy.array([0.]*3)
         self.current_yaw = 0.
@@ -125,41 +130,41 @@ class ChooseLTLPlanPlugin(Plugin):
         self.initial_v_theta = 0
 
 
-        package = 'quad_control'
-        executable = 'planner_node.py'
-        args = ""
+        # package = 'quad_control'
+        # executable = 'planner_node.py'
+        # args = ""
 
-        self.firefly = False
+        # self.firefly = False
 
-        if self.namespace:
-            args = "--namespace "+self.namespace
-        if self.firefly:
-            args += "firefly"
-        node = roslaunch.core.Node(package, executable,args=args,output="screen", namespace=self.namespace)
+        # if self.namespace:
+        #     args = "--namespace "+self.namespace
+        # if self.firefly:
+        #     args += "firefly"
+        # node = roslaunch.core.Node(package, executable,args=args,output="screen", namespace=self.namespace)
 
-        launch = roslaunch.scriptapi.ROSLaunch()
-        launch.start()
+        # launch = roslaunch.scriptapi.ROSLaunch()
+        # launch.start()
 
-        self.process = launch.launch(node)
+        # self.process = launch.launch(node)
 
         # launch collision avoidance node if it is active
 
-        collision_av_active = rospy.get_param("collision_avoidance_active", True)
+        # collision_av_active = rospy.get_param("collision_avoidance_active", True)
 
-        if (collision_av_active):        
-            package = 'quad_control'
-            executable = 'collision_avoidance_node.py'
-            node = roslaunch.core.Node(package, executable, output = "screen", namespace=self.namespace)
-            launcher = roslaunch.scriptapi.ROSLaunch()
-            launcher.start()
-            launcher.launch(node)
+        # if (collision_av_active):        
+        #     package = 'quad_control'
+        #     executable = 'collision_avoidance_node.py'
+        #     node = roslaunch.core.Node(package, executable, output = "screen", namespace=self.namespace)
+        #     launcher = roslaunch.scriptapi.ROSLaunch()
+        #     launcher.start()
+        #     launcher.launch(node)
 
-        package = 'quad_control'
-        executable = 'magnitude_control_node.py'
-        node = roslaunch.core.Node(package, executable, output = "screen", namespace=self.namespace)
-        launcher = roslaunch.scriptapi.ROSLaunch()
-        launcher.start()
-        launcher.launch(node)
+        # package = 'quad_control'
+        # executable = 'magnitude_control_node.py'
+        # node = roslaunch.core.Node(package, executable, output = "screen", namespace=self.namespace)
+        # launcher = roslaunch.scriptapi.ROSLaunch()
+        # launcher.start()
+        # launcher.launch(node)
 
         self.trace = []
         self.canvas = None
@@ -167,14 +172,8 @@ class ChooseLTLPlanPlugin(Plugin):
 
 
         self.RotorSObject = RotorSConverter()
-        if self.firefly:
-            self.sub_odometry = rospy.Subscriber(
-                "/firefly/ground_truth/odometry",
-                Odometry,
-                self.get_state_from_rotorS_simulator
-                )
-        else:
-            rospy.Subscriber("quad_state", quad_state, self.update_trace)
+        
+        rospy.Subscriber("quad_state", quad_state, self.update_trace)
 
 
     def open_file(self):
@@ -217,7 +216,7 @@ class ChooseLTLPlanPlugin(Plugin):
         stop_srv = rospy.ServiceProxy(service_name, Empty,2.0)
         stop_srv()
         for ns in self.name_others:
-            service_name = "/"+ ns+'/start_speed_control'
+            service_name = "/"+ ns+'/StopTheQuad'
             rospy.wait_for_service(service_name,2.0)
             stopsrv = rospy.ServiceProxy(service_name, Empty,2.0)
             stop_srv()
@@ -242,27 +241,27 @@ class ChooseLTLPlanPlugin(Plugin):
     def load_sim_cube_3quads(self):
         ####### Load the landmarks #######
         # Iris 1
-        filename = '/home/giorgiocorra/sml_ws/src/quad_control/experimental_data/landmark_examples/cube_3quads_list_0.txt'
+        filename = '/home/giorgiocorra/sml_ws/src/quad_control/experimental_data/landmark_examples/cube_3quads_real_list_0.txt'
         service_name = '/Iris1/load_lmks_mission'
         rospy.wait_for_service(service_name,2.0)
         load_lmks_srv = rospy.ServiceProxy(service_name, Filename,2.0)
         load_lmks_srv(filename)
         # Iris 2
-        filename = '/home/giorgiocorra/sml_ws/src/quad_control/experimental_data/landmark_examples/cube_3quads_list_0.txt'
+        filename = '/home/giorgiocorra/sml_ws/src/quad_control/experimental_data/landmark_examples/cube_3quads_real_list_1.txt'
         service_name = '/Iris2/load_lmks_mission'
         rospy.wait_for_service(service_name,2.0)
         load_lmks_srv = rospy.ServiceProxy(service_name, Filename,2.0)
         load_lmks_srv(filename)
         # Iris 3
-        filename = '/home/giorgiocorra/sml_ws/src/quad_control/experimental_data/landmark_examples/cube_3quads_list_0.txt'
+        filename = '/home/giorgiocorra/sml_ws/src/quad_control/experimental_data/landmark_examples/cube_3quads_real_list_2.txt'
         service_name = '/Iris3/load_lmks_mission'
         rospy.wait_for_service(service_name,2.0)
         load_lmks_srv = rospy.ServiceProxy(service_name, Filename,2.0)
         load_lmks_srv(filename)
         ####### Place the quads #######
         # Iris 1
-        initial_position = numpy.array([2.,-1.,1.])
-        initial_v_psi = 1. * PI
+        initial_position = numpy.array([-1.,-1.,0.75])
+        initial_v_psi = 0. * PI
         initial_v_theta = 0. * PI
         service_name = '/Iris1/PlaceTheCamera'
         rospy.wait_for_service(service_name,2.0)
@@ -272,7 +271,7 @@ class ChooseLTLPlanPlugin(Plugin):
         theta = initial_v_theta
         place_srv(x=p[0],y=p[1],z=p[2],psi = psi, theta = theta)
         # Iris 2
-        initial_position = numpy.array([-2.5,1.,1.])
+        initial_position = numpy.array([-1.,1.5,2.])
         initial_v_psi = 0. * PI
         initial_v_theta = 0. * PI
         service_name = '/Iris2/PlaceTheCamera'
@@ -283,8 +282,8 @@ class ChooseLTLPlanPlugin(Plugin):
         theta = initial_v_theta
         place_srv(x=p[0],y=p[1],z=p[2],psi = psi, theta = theta)
         # Iris 3
-        initial_position = numpy.array([1.,1.5,1.])
-        initial_v_psi = -0.25 * PI
+        initial_position = numpy.array([1.,1.5,0.75])
+        initial_v_psi = 1 * PI
         initial_v_theta = 0. * PI
         service_name = '/Iris3/PlaceTheCamera'
         rospy.wait_for_service(service_name,2.0)
@@ -294,6 +293,47 @@ class ChooseLTLPlanPlugin(Plugin):
         theta = initial_v_theta
         place_srv(x=p[0],y=p[1],z=p[2],psi = psi, theta = theta)
 
+    def load_sim_1quad_sim(self):
+        ####### Load the landmarks #######
+        # Iris 1
+        filename = '/home/giorgiocorra/sml_ws/src/quad_control/experimental_data/landmark_examples/collav_test.txt'
+        service_name = '/load_lmks_mission'
+        rospy.wait_for_service(service_name,2.0)
+        load_lmks_srv = rospy.ServiceProxy(service_name, Filename,2.0)
+        load_lmks_srv(filename)
+        ####### Place the quad #######
+        # Iris 1
+        initial_position = numpy.array([0.,1.5,1.5])
+        initial_v_psi = -0.
+        initial_v_theta = 0. * PI
+        service_name = '/PlaceTheCamera'
+        rospy.wait_for_service(service_name,2.0)
+        place_srv = rospy.ServiceProxy(service_name, GotoPose,2.0)
+        p = initial_position.copy()
+        psi = initial_v_psi
+        theta = initial_v_theta
+        place_srv(x=p[0],y=p[1],z=p[2],psi = psi, theta = theta)
+
+    def load_sim_1quad_real(self):
+        ####### Load the landmarks #######
+        # Iris 1
+        filename = '/home/giorgiocorra/sml_ws/src/quad_control/experimental_data/landmark_examples/sim_1quad_real.txt'
+        service_name = '/load_lmks_mission'
+        rospy.wait_for_service(service_name,2.0)
+        load_lmks_srv = rospy.ServiceProxy(service_name, Filename,2.0)
+        load_lmks_srv(filename)
+        ####### Place the quad #######
+        # Iris 1
+        initial_position = numpy.array([-1.2,-1.5,1.5])
+        initial_v_psi = 0. * PI
+        initial_v_theta = 0. * PI
+        service_name = '/PlaceTheCamera'
+        rospy.wait_for_service(service_name,2.0)
+        place_srv = rospy.ServiceProxy(service_name, GotoPose,2.0)
+        p = initial_position.copy()
+        psi = initial_v_psi
+        theta = initial_v_theta
+        place_srv(x=p[0],y=p[1],z=p[2],psi = psi, theta = theta)
 
 
     # def redraw(self,d):
@@ -349,3 +389,138 @@ class ChooseLTLPlanPlugin(Plugin):
         # Comment in to signal that the plugin has a way to configure
         # This will enable a setting button (gear icon) in each dock widget title bar
         # Usually used to open a modal configuration dialog
+    
+    def save_3quads(self):
+
+        filename = self._widget.input_filename_3quads.text()
+        
+        if not filename:
+            filename = 'temporary_file'
+
+        t_0 = rospy.get_time()
+        reset_service_1 = '/Iris1/reset_t0'
+        reset_service_2 = '/Iris2/reset_t0'
+        reset_service_3 = '/Iris3/reset_t0'
+        save_service_1 = '/Iris1/SaveDataFromGui'
+        save_service_2 = '/Iris2/SaveDataFromGui'
+        save_service_3 = '/Iris3/SaveDataFromGui'
+        # Iris1
+        rospy.wait_for_service(reset_service_1,1.0)
+        reset_srv = rospy.ServiceProxy(reset_service_1, Time)
+        reset_srv(data = t_0)
+
+
+        rospy.wait_for_service(save_service_1,1.0)
+        try: 
+            # time out of one second for waiting for service
+            rospy.wait_for_service(save_service_1,1.0)
+            try:
+                AskForSavingOrNot = rospy.ServiceProxy(save_service_1, SaveData)
+                if self._widget.savedata_3quads_check.isChecked():
+                    reply = AskForSavingOrNot(flag_save = True, file_name = filename)
+                    if reply.Saving == True:
+                        print('Iris1: saving')
+                else:
+                    reply = AskForSavingOrNot(flag_save = False)
+                    if  reply.Saving == True:
+                        # if controller receives message, we know it
+                        print('Iris1: Stopped saving')
+
+            except rospy.ServiceException, e:
+                print "Service call failed: %s"%e 
+            
+        except: 
+            print "Service not available ..."        
+            pass
+        # Iris2
+        rospy.wait_for_service(reset_service_2,1.0)
+        reset_srv = rospy.ServiceProxy(reset_service_2, Time)
+        reset_srv(data = t_0)
+        rospy.wait_for_service(save_service_2,1.0)
+        try: 
+            # time out of one second for waiting for service
+            rospy.wait_for_service(save_service_2,1.0)
+            try:
+                AskForSavingOrNot = rospy.ServiceProxy(save_service_2, SaveData)
+                if self._widget.savedata_3quads_check.isChecked():
+                    reply = AskForSavingOrNot(flag_save = True, file_name = filename)
+                    if reply.Saving == True:
+                        print('Iris2: saving')
+                else:
+                    reply = AskForSavingOrNot(flag_save = False)
+                    if  reply.Saving == True:
+                        # if controller receives message, we know it
+                        print('Iris2: Stopped saving')
+
+            except rospy.ServiceException, e:
+                print "Service call failed: %s"%e 
+            
+        except: 
+            print "Service not available ..."        
+            pass
+        # Iris3
+        rospy.wait_for_service(reset_service_3,1.0)
+        reset_srv = rospy.ServiceProxy(reset_service_3, Time)
+        reset_srv(data = t_0)
+        rospy.wait_for_service(save_service_3,1.0)
+        try: 
+            # time out of one second for waiting for service
+            rospy.wait_for_service(save_service_3,1.0)
+            try:
+                AskForSavingOrNot = rospy.ServiceProxy(save_service_3, SaveData)
+                if self._widget.savedata_3quads_check.isChecked():
+                    reply = AskForSavingOrNot(flag_save = True, file_name = filename)
+                    if reply.Saving == True:
+                        print('Iris3: saving')
+                else:
+                    reply = AskForSavingOrNot(flag_save = False)
+                    if  reply.Saving == True:
+                        # if controller receives message, we know it
+                        print('Iris3: Stopped saving')
+
+            except rospy.ServiceException, e:
+                print "Service call failed: %s"%e 
+            
+        except: 
+            print "Service not available ..."        
+            pass
+
+    def save_1quad_sim(self):
+
+        filename = self._widget.input_filename_1quad_sim.text()
+        
+        if not filename:
+            filename = 'temporary_file'
+
+        if self._widget.savedata_1quad_sim_check.isChecked():
+            t_0 = rospy.get_time()
+            reset_service = '/reset_t0'
+            rospy.wait_for_service(reset_service,1.0)
+            reset_srv = rospy.ServiceProxy(reset_service, Time)
+            reset_srv(data = t_0)
+
+        save_service = '/SaveDataFromGui'
+        rospy.wait_for_service(save_service,1.0)
+        try: 
+            # time out of one second for waiting for service
+            rospy.wait_for_service(save_service,1.0)
+            try:
+                AskForSavingOrNot = rospy.ServiceProxy(save_service, SaveData)
+                if self._widget.savedata_1quad_sim_check.isChecked():
+                    reply = AskForSavingOrNot(flag_save = True, file_name = filename)
+                    if reply.Saving == True:
+                        print('Saving')
+                else:
+                    reply = AskForSavingOrNot(flag_save = False)
+                    if  reply.Saving == True:
+                        # if controller receives message, we know it
+                        print('Stopped saving')
+
+            except rospy.ServiceException, e:
+                print "Service call failed: %s"%e 
+            
+        except: 
+            print "Service not available ..."        
+            pass
+
+        

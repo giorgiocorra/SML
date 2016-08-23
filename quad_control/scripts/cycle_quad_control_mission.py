@@ -68,7 +68,7 @@ class QuadController():
 
             # file name provided by user in request 
             file_name    = req.file_name
-            self.file_handle  = file(self.package_save_path+'_'+time_stamp+'_'+file_name+namespace+'.txt', 'w')
+            self.file_handle  = file(self.package_save_path + namespace + '_' + file_name + '_' + time_stamp + '.txt', 'w')
 
             # if GUI request data to be saved, set flag to true
             self.SaveDataFlag = True
@@ -317,7 +317,7 @@ class QuadController():
             st_cmd.x     = position_velocity[0]; st_cmd.y     = position_velocity[1]; st_cmd.z     = position_velocity[2]
             st_cmd.vx    = position_velocity[3]; st_cmd.vy    = position_velocity[4]; st_cmd.vz    = position_velocity[5]
 
-            euler_angle  = self.mission_object.get_euler_angles()
+            euler_angle  = self.mission_object.get_quad_ea_rad()
 
             st_cmd.roll  = euler_angle[0]; st_cmd.pitch = euler_angle[1]; st_cmd.yaw   = euler_angle[2]
             
@@ -325,6 +325,10 @@ class QuadController():
 
             st_cmd.xd    = position_velocity_desired[0]; st_cmd.yd    = position_velocity_desired[1]; st_cmd.zd    = position_velocity_desired[2]
             st_cmd.vxd   = position_velocity_desired[3]; st_cmd.vyd   = position_velocity_desired[4]; st_cmd.vzd   = position_velocity_desired[5]
+
+            yaw_desired = self.mission_object.get_desired_yaw_rad(time_instant = rospy.get_time())
+
+            st_cmd.yaw_d = yaw_desired[0]
 
             rc_input_to_quad = self.mission_object.rc_output
             st_cmd.cmd_1 = rc_input_to_quad[0]; st_cmd.cmd_2 = rc_input_to_quad[1]; st_cmd.cmd_3 = rc_input_to_quad[2]; st_cmd.cmd_4 = rc_input_to_quad[3]
@@ -417,7 +421,7 @@ class QuadController():
 
             if self.SaveDataFlag == True:
                 # if we want to save data
-                numpy.savetxt(self.file_handle, [self.mission_object.get_complete_data()], delimiter=' ')
+                numpy.savetxt(self.file_handle, [self.mission_object.get_complete_data()], delimiter=' ', fmt = '%.4e')
             
             # go to sleep
             rate.sleep()

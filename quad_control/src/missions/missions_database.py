@@ -36,7 +36,16 @@ import vision_coverage_mission.vision_coverage_mission
 database["FireflyVisionMission"] = vision_coverage_mission.vision_coverage_mission.LTLMission
 
 import vision_coverage_mission_real.vision_coverage_mission_real
-database["RealVisionMission"] = vision_coverage_mission_real.vision_coverage_mission_real.LTLMission
+database["Real Vision Mission"] = vision_coverage_mission_real.vision_coverage_mission_real.LTLMission
+
+# import vision_coverage_mission.only_velocity_control
+# database["Vision mission only velocity"] = vision_coverage_mission.only_velocity_control.LTLMission
+
+import vision_coverage_mission.single_controller
+database["Vision mission single controller"] = vision_coverage_mission.single_controller.LTLMission
+
+import vision_coverage_mission_real.single_controller_real
+database["Real Vision Mission single controller"] = vision_coverage_mission_real.single_controller_real.LTLMission
 
 
 database["Default"] = database[rospy.get_param("MissionDefault","IrisRealTrajectoryTracking")]

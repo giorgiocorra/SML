@@ -174,7 +174,7 @@ class Mission(js.Jsonable):
 		# converting our controlller standard into iris+ standard
 		self.iris_plus_converter_object_mission = IrisPlusConverter()
 
-		self.stop_service = rospy.Service('StopTheQuad', GotoPosition, self.stop_the_quad)
+		self.stop_service = rospy.Service('StopTheQuad', Empty, self.stop_the_quad)
 		pass
 		
 		
@@ -266,13 +266,13 @@ class Mission(js.Jsonable):
 		like ploting or computing average errors
 		"""        
 		default_array = numpy.concatenate([
-			[rospy.get_time()],
+			[rospy.get_time()-self.time_instant_t0],
 			self.get_pv(),
 			self.get_pv_desired(),
 			self.get_euler_angles(),
 			self.desired_3d_force_quad])
 		
-		# default_array = numpy.concatenate([default_array,self.get_complementary_data()])      
+		default_array = numpy.concatenate([default_array,self.get_complementary_data()])      
 
 		return default_array
 

@@ -48,7 +48,7 @@ class ChooseSystemPlugin(Plugin):
     def __init__(self, context,namespace = None):
 
         # it is either "" or the input given at creation of plugin
-        self.namespace = rospy.get_namespace()[1:]
+        self.namespace = rospy.get_namespace()
 
 
         super(ChooseSystemPlugin, self).__init__(context)

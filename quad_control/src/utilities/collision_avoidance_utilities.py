@@ -32,9 +32,9 @@ def projection(x,n):
 
 def projection_cone(p,w,l):
 	scalar = np.asscalar(w.dot(p))
-	if (l>0):
-		return False, [], []
-	beta_plus = sqrt((1-l**2)/(1-scalar**2))
+	if (scalar >= 1.):				# any vector is ok
+		rospy.logerr("Errore collision avoidance: p=%f, w=%f, l=%f"%(p,w,l))
+	beta_plus = sqrt((1.-l**2)/(1.-scalar**2))
 	beta_minus = -beta_plus
 	alpha_plus = -beta_plus * scalar + l
 	alpha_minus = -beta_minus * scalar + l
@@ -116,8 +116,8 @@ def wall_directions(p, p_others, P_MIN = [-3,-3,0], P_MAX = [3,3,4], DELTA_WALLS
 
 def cone_width(d, delta_distance, delta_worry):
 	l = -(d - delta_distance)/delta_worry
-	if (l > 0):
-		l = 0
+	if (l > 0.):
+		l = 0.
 	return l
 
 def wall_directions_smooth(p, p_others, P_MIN = [-3,-3,0], P_MAX = [3,3,4], DELTA_WALLS = [0.5,0.5,0.3], DELTA_OTHERS = 2, DELTA_WORRY = 0.5):

@@ -80,6 +80,7 @@ add_service_files(
   GotoPose.srv
   Filename.srv
   LandmarksTrade.srv
+  Time.srv
 )
 
 ## Generate actions in the 'action' folder

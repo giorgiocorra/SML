@@ -110,6 +110,7 @@ class SpeedTuningPlugin(Plugin):
         self._widget.mvz.clicked.connect(lambda : self.speed_command(numpy.array([0,0,-1])))
         self._widget.v0.clicked.connect(lambda : self.speed_command(numpy.array([0,0,0])))
         self._widget.goto_init.clicked.connect(self.goto_initial_position)
+        self._widget.set_yaw_angle.clicked.connect(self.set_yaw_angle)
         self._widget.stop.clicked.connect(lambda : self.stop())
 
         self._widget.b_speed_cont.clicked.connect(self.switch_to_speed_cont)
@@ -131,6 +132,16 @@ class SpeedTuningPlugin(Plugin):
     def goto_initial_position(self):
         offset = numpy.array([0,0,self._widget.z_value.value()])
         self.stop(self.initial_position + offset)
+
+    def set_yaw_angle(self):
+        yaw = self._widget.yaw_value.value()
+
+        service_name = "/"+ self.namespace+'set_yaw_value'
+        rospy.logerr("Call:" + service_name + " to " + str(yaw))
+        rospy.wait_for_service(service_name,2.0)
+        stop_srv = rospy.ServiceProxy(service_name, GotoPose,2.0)
+
+        stop_srv(x=0.,y=0.,z=0., theta = 0., psi = yaw)
 
     def stop(self,position=numpy.array([0,0,1])):
 

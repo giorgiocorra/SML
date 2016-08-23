@@ -3,6 +3,13 @@
         <!-- Controller Node -->
         <node pkg="quad_control" name="plot_nodeasas" type="plot_experiment.py"/>
 
+        <!-- Planner Node -->
+        <node pkg="quad_control" name="planner_node" type="planner_node.py"/>
+        <!-- Collision avoidance Node -->
+        <node pkg="quad_control" name="collision_avoidance_node" type="collision_avoidance_node.py"/>
+        <!-- Magnitude control Node -->
+        <node pkg="quad_control" name="magnitude_control_node" type="magnitude_control_node.py"/>
+
         <!-- Default Mission -->
         <param name="MissionDefault" type="str" value="IrisRealTrajectoryTracking"/>
 
@@ -52,32 +59,36 @@
         <param name="ktt_inner_loop" value="10.0"/> 
 
         <!-- Planner parameters -->
-        <param name="D_OPT" value="6" type="double"/> 
+        <param name="D_OPT" value="3" type="double"/> 
         <param name="planner_frequency" value="1e1" type="double"/> 
         <!-- Collision avoidance parameters -->
         <param name="collision_avoidance_active" value="True" type="bool"/>
         <param name="smooth" value="True" type="bool"/>
 
         <!-- Real arena -->
-        <param name="x_min" value="-0.8" type="double"/>
-        <param name="y_min" value="-2.0" type="double"/>
-        <param name="z_min" value="0" type="double"/>
-        <param name="x_max" value="2.8" type="double"/>
-        <param name="y_max" value="2" type="double"/>
-        <param name="z_max" value="2" type="double"/>
+        <param name="x_min" value="-1.5" type="double"/>
+        <param name="y_min" value="-2.2" type="double"/>
+        <param name="z_min" value="0.3" type="double"/>
+        <param name="x_max" value="2" type="double"/>
+        <param name="y_max" value="1.7" type="double"/>
+        <param name="z_max" value="3" type="double"/>
 
-        <param name="delta_walls_x" value="0.5" type="double"/>
-        <param name="delta_walls_y" value="0.5" type="double"/>
-        <param name="delta_walls_z" value="0.3" type="double"/>
+        <param name="delta_walls_x" value="0" type="double"/>
+        <param name="delta_walls_y" value="0" type="double"/>
+        <param name="delta_walls_z" value="0" type="double"/>
         <param name="delta_others" value="2" type="double"/>
         <param name="delta_worry" value="0.5" type="double"/>
         <!-- Magnitude control parameters -->
         <param name="magnitude_control_type" value="BLS" type="String"/>
         <param name="v_lim" value="0.3" type="double"/>
+        <param name="v_min" value="1e-2" type="double"/>
+        <param name="omega_lim" value="0.79" type="double"/>
+        <param name="omega_min" value="0.1" type="double"/>
         <param name="alpha" value="1" type="double"/>
         <param name="beta" value="0.5" type="double"/>
         <param name="tau" value="0.9" type="double"/>
-        <param name="v_min" value="1e-5" type="double"/>
+
+        <param name="buffer_length" value="50" type="int"/>
 
         <!-- Multiagent mission parameters -->
         <param name="name_others" value="" type="str"/>
@@ -120,5 +131,11 @@
         <!-- similar to rosrun rqt_gui rqt_gui -->
         <!-- <node name="rqt_gui" pkg="rqt_gui" type="rqt_gui"/> -->
         <node name="rqt_gui" pkg="rqt_gui" type="rqt_gui" args="--standalone  tabbedGUI"/>
+
+        <node pkg="quad_control" name="vision_plot_node" type="vision_plot.py"/>
+
+        <node pkg="quad_control" name="projector_node" type="projector_node.py"/>
+
+        <param name="radius_circle_proj" value="0.5" type="double"/>
 
 </launch>

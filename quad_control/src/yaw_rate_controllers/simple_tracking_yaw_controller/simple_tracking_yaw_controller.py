@@ -13,7 +13,7 @@ class SimpleTrackingYawController(yc.YawController):
     def description(cls):
         return "Simple yaw tracking controller, based on <b>feedback linearization of yaw rate equation</b>"
 
-    def __init__(self, gain = 1.0):
+    def __init__(self, gain = 2.0):
         self.__gain = gain
     
     

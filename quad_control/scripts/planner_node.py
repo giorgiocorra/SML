@@ -15,8 +15,8 @@ import tf.transformations as tf
 try:
 	from quad_control.srv import Filename, LandmarksTrade
 	from std_srvs.srv import Empty
-	from quad_control.msg import quad_speed_cmd_3d
-	from quad_control.msg import camera_pose
+	from quad_control.msg import quad_speed_cmd_3d, camera_pose
+	from std_msgs.msg import Float64
 except ImportError:
 	pass
 import json
@@ -32,8 +32,6 @@ import numpy as np
 class MonotonePlannerNode():
 	def __init__(self,namespace,firefly=False):
 
-		self.execute_plan = False
-
 		rospy.init_node('planner', anonymous=True)
 
 		self.namespace = rospy.get_namespace()[1:]
@@ -41,12 +39,14 @@ class MonotonePlannerNode():
 		# rospy.logerr("Namespace name: " + self.namespace)
 
 		speed_command_topic = "/"+self.namespace+"quad_max_speed_cmd"
+		vision_topic = "/"+self.namespace+"vision"
 
 		self.speed_controller = rospy.Publisher(speed_command_topic, quad_speed_cmd_3d, queue_size=10)
+		self.vision_publisher = rospy.Publisher(vision_topic, Float64, queue_size=10)
 
-		self.D_OPT = rospy.get_param("/" + self.namespace+"D_OPT")
-		freq = rospy.get_param("planner_frequency",1e1)
-		self.__landmarks = cov.Landmark_list()
+		self.D_OPT = rospy.get_param("/D_OPT")
+		freq = rospy.get_param("/planner_frequency",1e1)
+		self.__landmarks = cov.Landmark_list([])
 		self.__camera = cov.Camera()
 		self.__time = 0.
 
@@ -80,8 +80,10 @@ class MonotonePlannerNode():
 			# rospy.logerr("Position: " + str(self.__camera.position()))
 			# rospy.logerr("Orientation vector: " + str(self.__camera.orientation_as_lat_long()))
 			# #rospy.logerr("Landmarks: " + str(self.__landmarks))
+			vision = self.__landmarks.vision(self.__camera,self.D_OPT)
 			vel_command = quad_speed_cmd_3d(vx=control_v[0],vy=control_v[1],vz=control_v[2],wx=control_omega[0],wy=control_omega[1],wz=control_omega[2],time=self.__time)
 			#rospy.logerr(command)
+			self.vision_publisher.publish(vision)
 			self.speed_controller.publish(vel_command)
 			# go to sleep
 			rate.sleep()
@@ -122,10 +124,10 @@ class MonotonePlannerNode():
 		return {}
 
 	def load_lmks(self,data):
-		self.__landmarks = cov.Landmark_list()
+		self.__landmarks = cov.Landmark_list([])
 		self.__landmarks.from_lists(q = data.q, u = data.u)
-		rospy.logwarn("Landmarks loaded: ")
-		rospy.logwarn(str(self.__landmarks))
+		# rospy.logwarn("Landmarks" + str(self.namespace) +" loaded planner: ")
+		# rospy.logwarn(str(self.__landmarks))
 		return {}
 
 	def reset(self):

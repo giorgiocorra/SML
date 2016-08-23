@@ -16,8 +16,11 @@ database["SimplePIDController"] = SimplePIDController
 from simple_pid_speed_controller_3d.simple_pid_controller_3d import SimplePIDSpeedController
 database["SimplePIDSpeedController_3d"] = SimplePIDSpeedController
 
+# from simple_pid_speed_controller_3d.simple_pid_controller_3d_2 import SimplePIDSpeedController_2
+# database["SimplePIDSpeedController_3d_2"] = SimplePIDSpeedController_2
+
 # from abstract_pid_controller.abstract_pid_controller import ThreeDPIDController
 # database["AbstractPIDController"] = ThreeDPIDController
 
 
-database["Default"] = database[rospy.get_param("ControllerDefault","SimplePIDSpeedController_3d")]
+database["Default"] = database[rospy.get_param("ControllerDefault","SimplePIDController")]

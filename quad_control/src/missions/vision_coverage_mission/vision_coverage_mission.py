@@ -6,6 +6,7 @@ from converter_between_standards.iris_plus_converter import IrisPlusConverter
 
 # publish message quad_cmd that contains commands to simulator
 from quad_control.msg import quad_cmd, quad_state,quad_speed_cmd_3d, camera_pose
+from std_msgs.msg import Float64
 
 from controllers.fa_trajectory_tracking_controllers import fa_trajectory_tracking_controllers_database
 
@@ -14,7 +15,7 @@ from yaw_rate_controllers.neutral_yaw_controller.neutral_yaw_controller import N
 from yaw_rate_controllers.simple_tracking_yaw_controller.simple_tracking_yaw_controller import SimpleTrackingYawController
 from yaw_rate_controllers import yaw_controllers_database
 
-from quad_control.srv import GotoPosition, GotoPose, LandmarksTrade, Filename
+from quad_control.srv import GotoPosition, GotoPose, LandmarksTrade, Filename, Time
 from std_srvs.srv import Empty,SetBool
 
 from utilities.utility_functions import skew, lat_long_from_unit_vec, unit_vec_from_lat_long
@@ -28,6 +29,7 @@ norm = numpy.linalg.norm
 
 # for subscribing to topics, and publishing
 import rospy
+get = rospy.get_param
 
 import rospkg
 import sys
@@ -54,7 +56,11 @@ class LTLMission(mission.Mission):
 
     @classmethod
     def description(cls):
-        return "LTL planner"
+        D_OPT = get("/D_OPT",3.)
+        coll_av = get("/collision_avoidance_active", True)
+        mag_ctrl = get("/magnitude_control_type","None")
+        n_ag = len(get("/name_agents", '').rsplit(' '))
+        return "Vision mission simulation, %d agents.\n D_OPT = %f \n Collision avoidance = %s \n Magnitude control = %s \n" % (n_ag, D_OPT, coll_av, mag_ctrl)
 
     
     def __init__(self,controller=fa_trajectory_tracking_controllers_database.database["Default"](),yaw_controller = yaw_controllers_database.database["Default"]()):
@@ -71,12 +77,18 @@ class LTLMission(mission.Mission):
 
         self.place_service = rospy.Service('PlaceTheCamera', GotoPose, self.place_camera)
 
-        rospy.Service('slow_take_off', Empty, self.take_off)
+        self.set_yaw_srv = rospy.Service('set_yaw_value', GotoPose, self.set_yaw_handle)
 
-        rospy.Service("/"+self.namespace+'load_lmks_mission', Filename, self.load_lmks_callback)
+        self.take_off_service = rospy.Service('slow_take_off', Empty, self.take_off)
 
-        rospy.Service('start_speed_control', Empty, self.start_speed_control)
-        
+        self.load_lmks_srv = rospy.Service("/"+self.namespace+'load_lmks_mission', Filename, self.load_lmks_callback)
+
+        self.start_speed_control_srv = rospy.Service('start_speed_control', Empty, self.start_speed_control)
+
+        self.speed_cont = rospy.Service('use_speed_controller',SetBool, self.use_speed_controller)
+
+        self.reset_t0_srv = rospy.Service('reset_t0', Time, self.reset_t0)
+
         # converting our controlller standard into iris+ standard
         self.IrisPlusConverterObject = IrisPlusConverter()
 
@@ -98,9 +110,18 @@ class LTLMission(mission.Mission):
         #     rospy.Subscriber("quad_max_speed_cmd", quad_speed_cmd_3d, self.set_command)
 
         rospy.Subscriber("quad_speed_magnitude",quad_speed_cmd_3d, self.set_command)
+        rospy.Subscriber("quad_speed_3d_test",quad_speed_cmd_3d, self.set_command_speed_test)
+
+        # Subscriptions just for saving data
+        #rospy.Subscriber("camera_pose", camera_pose, self.camera_pose_callback)
+        rospy.Subscriber("quad_max_speed_cmd", quad_speed_cmd_3d,  self.max_speed_callback)
+        rospy.Subscriber("quad_speed_cmd_avoid", quad_speed_cmd_3d, self.avoid_speed_callback)
+        #rospy.Subscriber("quad_speed_magnitude", quad_speed_cmd_3d, self.magnitude_speed_callback)
+        rospy.Subscriber("vision", Float64, self.vision_callback)
+
 
         # Trading landmarks
-        if (rospy.get_param("/trade_allowed",False)):
+        if (get("/trade_allowed",False)):
             rospy.Service("/"+self.namespace+'change_landmarks', LandmarksTrade, self.change_landmarks_handle)
         
         # controllers selected by default
@@ -109,13 +130,13 @@ class LTLMission(mission.Mission):
 
         # SimpleTrackingYawController(gain=5.0)
 
-        self.command_filtered = numpy.zeros(3*5)        # the one that is sent to the quad
-        self.command_filtered[2] = 1                    # start in [0,0,1]
+        # self.command_filtered = numpy.zeros(3*5)        # the one that is sent to the quad
+        # self.command_filtered[2] = 1                    # start in [0,0,1]
         #self.cam_command_filtered = numpy.zeros(2)
         #self.reference = numpy.zeros(3*5)
 
 
-        self.command  = self.command_filtered.copy()    # the one that is computed by the planner (received on "quad_speed_cmd")
+        self.command  = numpy.zeros(3*5)    # the one that is computed by the planner (received on "quad_speed_cmd")
         #self.cam_command = self.cam_command_filtered.copy()
 
     def initialize_state(self):
@@ -128,8 +149,18 @@ class LTLMission(mission.Mission):
         self.lat_rate = 0.
         self.long = 0.
         self.lat = 0.
-        self.lmks = Landmark_list()
-        
+        self.lmks = Landmark_list([])
+        # For saving data
+        self.p_dot_max = [0.] *3
+        self.omega_max = [0.] *3
+        self.p_dot_dir = [0.] *3
+        self.p_dot_star = [0.] *3
+        self.omega_star = [0.] *3
+        self.vision = 0.
+        self.n_lmks = 0.
+        self.q = [0.] *3
+        self.u = [0.] *3
+
         
         
     def __str__(self):
@@ -145,9 +176,19 @@ class LTLMission(mission.Mission):
     def shutdown(self):
         self.stop_service.shutdown()
         self.place_service.shutdown()
+        self.take_off_service.shutdown()
+        self.load_lmks_srv.shutdown()
+        self.start_speed_control_srv.shutdown()
+        self.speed_cont.shutdown()
+        self.set_yaw_srv.shutdown()
+        self.reset_t0_srv.shutdown()
+        if (get("/trade_allowed",False)):
+            self.change_lmks_srv.shutdown()
 
     def get_quad_ea_rad(self):
-    	return numpy.array(self.state_quad[6:12])
+    	euler_rad     = self.state_quad[6:9]*math.pi/180
+        euler_rad_dot = numpy.zeros(3)
+        return numpy.concatenate([euler_rad,euler_rad_dot])
 
     def get_reference(self,time_instant):
         #p=0.05
@@ -238,12 +279,17 @@ class LTLMission(mission.Mission):
 
         self.pub_cam_pose.publish(cam_pose)
 
-        if (self.state=='position')and(norm(self.command[0:3]-p)<1e-2)and(norm(self.command[11]-self.long)<1e-2):         # TODO: add condition on orientation of camera
+        if (self.state=='position')and(norm(self.command[0:3]-p)<1e-1)and(norm(self.command[11]-self.long)<1e-2):         # TODO: add condition on orientation of camera
             rospy.logerr(self.namespace + ': Initial position reached')
             self.stop_the_quad()
 
 
     def set_command(self,data):
+
+        # For saving data
+        self.p_dot_star = [data.vx, data.vy, data.vz]
+        self.omega_star = [data.wx,data.wy,data.wz]
+
         if (self.state=='speed'):
             pos = self.state_quad[0:3]
             vel = [data.vx, data.vy, data.vz]
@@ -265,7 +311,7 @@ class LTLMission(mission.Mission):
             if (not self.changed_state)and(norm(vel)<1e-1)and(norm(omega_xyz)<1e-1):
                 rospy.logerr(self.namespace + ': Final position reached')
                 self.stop_the_quad()
-                if (rospy.get_param("/trade_allowed",False)):
+                if (get("/trade_allowed",False)):
                     rospy.logerr(self.namespace + ': Ready to trade')
                     name_agent = self.namespace[:-1]        # remove the final character '/'
                     q, u = self.lmks.to_lists()
@@ -276,6 +322,15 @@ class LTLMission(mission.Mission):
 
             else:
                 self.command = numpy.concatenate([pos, vel, acc, angles, omega])
+
+    def set_command_speed_test(self,data):
+         if (self.state == 'test_speed_control'):
+            pos = numpy.zeros(3)
+            vel = [data.vx, data.vy, data.vz]
+            acc = numpy.zeros(3)
+            angles = numpy.zeros(3)
+            omega = [data.wx, data.wy, data.wz] 
+            self.command = numpy.concatenate([pos, vel, acc, angles, omega])
 
     def get_command(self):
         return self.command
@@ -292,16 +347,18 @@ class LTLMission(mission.Mission):
             ControllerClass      = self.inner['controller']["SimplePIDController"]
             self.ControllerObject = ControllerClass()
         
-        if self.YawControllerObject.__class__ != self.inner['yaw_controller']["NeutralYawController"]:
-            rospy.logwarn(self.namespace + "Switch to neutral yaw controller")
-            ControllerClass      = self.inner['yaw_controller']["NeutralYawController"]
-            self.YawControllerObject = ControllerClass()
+        # if self.YawControllerObject.__class__ != self.inner['yaw_controller']["NeutralYawController"]:
+        #     rospy.logwarn(self.namespace + "Switch to neutral yaw controller")
+        #     ControllerClass      = self.inner['yaw_controller']["NeutralYawController"]
+        #     self.YawControllerObject = ControllerClass()
 
         self.command[0:3] = self.state_quad[0:3]
         self.command[3:6] = numpy.array([0.,0.,0.])
         self.command[6:9] = numpy.array([0.,0.,0.])
         self.command[9:12] = numpy.array([0.,0.,self.state_quad[8]])
         self.command[12:15] = numpy.array([0.,0.,0.])
+        self.lat_rate = 0
+        self.long_rate = 0
         rospy.logerr(self.namespace + ": Stopping the quad: ")
         rospy.logwarn('Position: ' + str(self.command[0:3]))
         rospy.logwarn('Yaw: ' + str(self.long) + ' / Pitch: ' + str(self.lat))
@@ -349,9 +406,9 @@ class LTLMission(mission.Mission):
         self.state = 'speed'
         self.changed_state = True               # to avoid stopping because of the delay in the answer of the planner
 
-        if self.ControllerObject.__class__ != self.inner['controller']["SimplePIDSpeedController_3d"]:
+        if self.ControllerObject.__class__ != self.inner['controller']["SimplePIDSpeedController_3d_2"]:
             rospy.logwarn("Switch to velocity controller")
-            ControllerClass      = self.inner['controller']["SimplePIDSpeedController_3d"]
+            ControllerClass      = self.inner['controller']["SimplePIDSpeedController_3d_2"]
             self.ControllerObject = ControllerClass()
 
         if self.YawControllerObject.__class__ != self.inner['yaw_controller']["Default"]:
@@ -380,6 +437,9 @@ class LTLMission(mission.Mission):
     def load_lmks_callback(self, data):
         self.lmks = read_lmks_from_file(data.filename)
         q, u = self.lmks.to_lists()
+        self.q = numpy.squeeze(q)
+        self.u = numpy.squeeze(u)
+        self.n_lmks = len(self.q)/3
         service_name = "/"+ self.namespace+'load_lmks_planner'
         rospy.wait_for_service(service_name,2.0)
         load_lmks_srv = rospy.ServiceProxy(service_name, LandmarksTrade,2.0)
@@ -393,7 +453,10 @@ class LTLMission(mission.Mission):
 
     def change_landmarks_handle(self,data):
         rospy.logerr(self.namespace + ': Landmarks received')
-        self.lmks = Landmark_list()
+        self.q = numpy.squeeze(data.q)
+        self.u = numpy.squeeze(data.u)
+        self.n_lmks = len(self.q)/3
+        self.lmks = Landmark_list([])
         self.lmks.from_lists(q = data.q, u = data.u)
         service_name = "/"+ self.namespace+'load_lmks_planner'
         rospy.wait_for_service(service_name,2.0)
@@ -403,6 +466,55 @@ class LTLMission(mission.Mission):
         rospy.wait_for_service(service_name,2.0)
         load_lmks_srv = rospy.ServiceProxy(service_name, LandmarksTrade,2.0)
         load_lmks_srv(data)
-        self.start_speed_control(q = data.q, u = data.u, name_agent = '')
+        self.start_speed_control()
         return {}
 
+    def  use_speed_controller(self,data):
+        if data.data:
+            self.state = 'test_speed_control'
+            if self.ControllerObject.__class__ != self.inner['controller']["SimplePIDSpeedController_3d_2"]:
+                rospy.logwarn("Switch to velocity controller")
+                ControllerClass      = self.inner['controller']["SimplePIDSpeedController_3d_2"]
+                self.ControllerObject = ControllerClass()
+        else:
+            self.stop_the_quad()
+
+    def set_yaw_handle(self,data = None):
+        
+        self.command[9:12] = numpy.array([0.,0.,data.psi])
+        rospy.logwarn('Given yaw command: ' + str(data.psi))
+        return {}
+
+    def reset_t0(self,data):
+        if not(data):
+            self.reset_initial_time()
+        else:
+            self.reset_initial_time(data.data)
+        return {}
+
+    def get_complementary_data(self):
+        """Get complementary data that is not included 
+        in get_complete_data() already
+        """
+        if self.state == 'stop':
+            a = 1
+        elif self.state == 'position':
+            a = 2
+        elif self.state == 'speed':
+            a = 3
+        elif self.state == 'test_speed_control':
+            a = 4
+        # by default return empty array
+        return numpy.concatenate([[a],[self.long], [self.lat], self.p_dot_max, self.omega_max, self.p_dot_dir, self.p_dot_star, self.omega_star, [self.n_lmks], [self.vision], self.q, self.u])
+
+    ############# Subscriptions only for saving data #############
+
+    def max_speed_callback(self, data):
+        self.p_dot_max = [data.vx, data.vy, data.vz]
+        self.omega_max = [data.wx, data.wy, data.wz]
+
+    def avoid_speed_callback(self, data):
+        self.p_dot_dir = [data.vx, data.vy, data.vz]
+
+    def vision_callback(self,data):
+        self.vision = data.data
